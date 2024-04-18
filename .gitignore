@@ -3,6 +3,7 @@
 # test data
 *.fake.json
 *.fake.sh
+/backend/public
 
 # compiled output
 dist

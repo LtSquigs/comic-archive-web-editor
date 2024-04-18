@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "src",
     "sourceMap": true,
     "declaration": false,
     "moduleResolution": "node",
@@ -17,5 +17,5 @@
   },
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "compileOnSave": false,
-  "exclude": ["node_modules", "tmp"]
+  "exclude": ["node_modules"]
 }
