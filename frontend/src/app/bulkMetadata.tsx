@@ -72,16 +72,6 @@ export function BulkMetadata({ files }: { files: string[] }) {
     const data = result.data;
     const errors = result.errors;
 
-    if (errors.length > 0) {
-      setBulkStatus(ActionState.FAILED);
-      setCSVError(
-        `There were errors while parsing the CSV provided: ${JSON.stringify(
-          errors
-        )}`
-      );
-      return;
-    }
-
     if (data.length != files.length) {
       setBulkStatus(ActionState.FAILED);
       setCSVError(
