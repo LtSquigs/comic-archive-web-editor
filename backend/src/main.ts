@@ -92,6 +92,7 @@ app.post('/cbz/image/join', async (req, res) => {
     throw new Error('TOO MANY FILES');
   }
   const cbz = new CBZ(files[0]);
+  await cbz.load();
 
   try {
     await cbz.combineImages(pairs);
@@ -111,6 +112,7 @@ app.get('/cbz/image', async (req, res) => {
   const entry = req.query['entry'] as string;
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
 
   try {
     let [img, mime] = await cbz.getImageByName(entry);
@@ -134,6 +136,7 @@ app.get('/cbz/cover', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
 
   try {
     let [img, mime] = await cbz.getCover();
@@ -162,6 +165,7 @@ app.post('/cbz/cover', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
   try {
     await cbz.setCover(newCover);
   } finally {
@@ -179,6 +183,7 @@ app.get('/cbz/entries', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
   try {
     res.json({ entries: await cbz.entries() });
   } finally {
@@ -195,6 +200,7 @@ app.post('/cbz/entries', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
   try {
     await cbz.renameEntries(nameMap);
   } finally {
@@ -217,6 +223,7 @@ app.post('/cbz/split', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
+  await cbz.load();
   try {
     await cbz.split(splits);
   } finally {
@@ -229,8 +236,23 @@ app.post('/cbz/split', async (req, res) => {
 app.post('/cbz/flatten', async (req, res) => {
   for (let file of getFiles(req)) {
     const cbz = new CBZ(file);
+    await cbz.load();
     try {
       await cbz.flatten();
+    } finally {
+      await cbz.close();
+    }
+  }
+
+  res.json({ success: true });
+});
+
+app.post('/cbz/removeExif', async (req, res) => {
+  for (let file of getFiles(req)) {
+    const cbz = new CBZ(file);
+    await cbz.load();
+    try {
+      await cbz.removeExif();
     } finally {
       await cbz.close();
     }
@@ -272,6 +294,7 @@ app.get('/cbz/metadata', async (req, res) => {
     }
     const file = files[idx];
     const cbz = new CBZ(file);
+    await cbz.load();
     try {
       const metadata = (await cbz.getMetadata()).copyOut();
       if (allMetadata === undefined) {
@@ -312,6 +335,7 @@ app.post('/cbz/metadata', async (req, res) => {
 
   for (let file of getFiles(req)) {
     const cbz = new CBZ(file);
+    await cbz.load();
     try {
       const oldMetadata = (await cbz.getMetadata()).copyOut();
 
@@ -334,6 +358,7 @@ app.post('/cbz/metadata/bulk', async (req, res) => {
 
   for (let [file, fullName] of getFileFromBody(req)) {
     const cbz = new CBZ(fullName);
+    await cbz.load();
     try {
       const oldMetadata = (await cbz.getMetadata()).copyOut();
       const newMetadata = metadata[file];

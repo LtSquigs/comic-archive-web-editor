@@ -134,8 +134,6 @@ export function JoinPages({
             </Button>
             {joinStatus === ActionState.FAILED ? (
               <Badge variant={'destructive'}>Joining Images Failed</Badge>
-            ) : joinStatus === ActionState.SUCCESS ? (
-              <Badge variant={'default'}>Joining Images Finished</Badge>
             ) : null}
           </div>
         );

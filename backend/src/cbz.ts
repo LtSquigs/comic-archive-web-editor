@@ -14,22 +14,90 @@ import {
 } from '@zip.js/zip.js';
 import fs from 'fs';
 import { joinImages } from 'join-images';
+import ExifTransformer from 'exif-be-gone';
+import { Readable } from 'stream';
+
+// Simple previous file cache, since the main use case of this server is
+// single use read for a single CBZ file, this is intended to let us cache
+// between calls if necessary
+const fileCache = {
+  filename: '',
+  mtime: -1,
+  zipReader: null as ZipReader<unknown> | null,
+};
+
+const removeExif = (buf: Buffer): Promise<Blob> => {
+  return new Promise(async (resolve, reject) => {
+    const transformer = new (ExifTransformer as any)();
+    const readable = Readable.from(buf);
+    const bw = new BlobWriter();
+    const writer = bw.writable.getWriter();
+
+    readable.pipe(transformer);
+    transformer.on('data', (chunk: any) => {
+      writer.write(chunk);
+    });
+
+    transformer.on('end', async () => {
+      writer.close();
+      resolve(await bw.getData());
+    });
+
+    transformer.on('error', (err: any) => {
+      writer.close();
+      reject(err);
+    });
+  });
+};
 
 export class CBZ {
-  zipReader: ZipReader<unknown>;
+  dirty: boolean;
+  zipReader: ZipReader<unknown> | null;
   file = '';
 
   constructor(filename: string) {
     this.file = filename;
-    const file = fs.readFileSync(this.file);
-    this.zipReader = new ZipReader(new Uint8ArrayReader(new Uint8Array(file)));
+    this.zipReader = null;
+    this.dirty = false;
+  }
+
+  async load() {
+    const stats = fs.statSync(this.file);
+    // Cached zip reader for this file, check if new or not
+    if (
+      fileCache.filename === this.file &&
+      stats.mtimeMs === fileCache.mtime &&
+      fileCache.zipReader
+    ) {
+      this.zipReader = fileCache.zipReader;
+      // Use cached file
+    } else {
+      if (fileCache.zipReader) {
+        await fileCache.zipReader.close();
+        fileCache.filename = '';
+        fileCache.mtime = -1;
+      }
+
+      const file = fs.readFileSync(this.file);
+      this.zipReader = new ZipReader(
+        new Uint8ArrayReader(new Uint8Array(file))
+      );
+
+      fileCache.mtime = stats.mtimeMs;
+      fileCache.zipReader = this.zipReader;
+      fileCache.filename = this.file;
+    }
   }
 
   async close() {
-    await this.zipReader.close();
+    if (!this.zipReader) return;
+    //await this.zipReader.close();
   }
 
   async entries() {
+    if (!this.zipReader) return [];
+    if (this.dirty) await this.reload();
+
     const entries = [];
     for (let entry of await this.zipReader.getEntries()) {
       const ext = path.extname(entry.filename);
@@ -64,6 +132,9 @@ export class CBZ {
   }
 
   async flatten() {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const blobWriter = new BlobWriter('application/zip');
     const writer = new ZipWriter(blobWriter);
 
@@ -85,6 +156,9 @@ export class CBZ {
   }
 
   private async getMetadataEntry() {
+    if (!this.zipReader) return null;
+    if (this.dirty) await this.reload();
+
     const nameRegex = new RegExp(`^ComicInfo\.xml$`, 'i');
     for (let entry of await this.zipReader.getEntries()) {
       const name = entry.filename;
@@ -98,6 +172,9 @@ export class CBZ {
   }
 
   async getMetadata() {
+    if (!this.zipReader) return new ComicInfo();
+    if (this.dirty) await this.reload();
+
     const entry = await this.getMetadataEntry();
 
     if (entry !== null && entry.getData) {
@@ -110,6 +187,9 @@ export class CBZ {
   }
 
   async setMetadata(metadata: any) {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const info = ComicInfo.copyInto(metadata);
     const blobWriter = new BlobWriter('application/zip');
     const writer = new ZipWriter(blobWriter);
@@ -135,6 +215,9 @@ export class CBZ {
   }
 
   async renameEntries(map: Map = {}) {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const blobWriter = new BlobWriter('application/zip');
     const writer = new ZipWriter(blobWriter);
 
@@ -153,9 +236,37 @@ export class CBZ {
     this.save(blob);
   }
 
-  removeExif() {}
+  async removeExif() {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
+    const blobWriter = new BlobWriter('application/zip');
+    const writer = new ZipWriter(blobWriter);
+
+    for (let entry of await this.zipReader.getEntries()) {
+      if (!entry.directory && entry.getData) {
+        const bw = new BlobWriter();
+        let data = await entry.getData(bw);
+
+        const mimeType = (mime as any).getType(entry.filename);
+        if (mimeType && mimeType.startsWith('image/')) {
+          data = await removeExif(Buffer.from(await data.arrayBuffer()));
+        }
+
+        await writer.add(entry.filename, new BlobReader(data));
+      }
+    }
+
+    await writer.close();
+    const blob = await blobWriter.getData();
+
+    this.save(blob);
+  }
 
   async getCover() {
+    if (!this.zipReader) return [null, null];
+    if (this.dirty) await this.reload();
+
     const entries = await this.zipReader.getEntries();
 
     let cover = null;
@@ -191,6 +302,9 @@ export class CBZ {
   }
 
   async setCover(coverFileName: string) {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const blobWriter = new BlobWriter('application/zip');
     const writer = new ZipWriter(blobWriter);
     let coverData: Blob | null = null;
@@ -224,6 +338,9 @@ export class CBZ {
   }
 
   async getImageByName(targetEntry: string) {
+    if (!this.zipReader) return [null, null];
+    if (this.dirty) await this.reload();
+
     let foundEntry = null;
     const entries = await this.zipReader.getEntries();
 
@@ -252,6 +369,9 @@ export class CBZ {
   }
 
   async combineImages(imagePairs: JoinPair[]) {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const blobWriter = new BlobWriter('application/zip');
     const writer = new ZipWriter(blobWriter);
 
@@ -357,6 +477,9 @@ export class CBZ {
   }
 
   async split(splits: Split[]) {
+    if (!this.zipReader) return;
+    if (this.dirty) await this.reload();
+
     const entries = await this.zipReader.getEntries();
     const nonImages = [];
     const entryMap = {} as { [key: string]: Entry };
@@ -412,16 +535,24 @@ export class CBZ {
     }
   }
 
-  reload() {
-    this.zipReader.close();
+  async reload() {
+    if (!this.zipReader) return;
+
+    await this.zipReader.close();
     const file = fs.readFileSync(this.file);
     this.zipReader = new ZipReader(new Uint8ArrayReader(new Uint8Array(file)));
+    const stats = fs.statSync(this.file);
+    fileCache.mtime = stats.mtimeMs;
+    fileCache.zipReader = this.zipReader;
+    fileCache.filename = this.file;
+
+    this.dirty = false;
   }
 
   async save(blob: Blob) {
     const data = Buffer.from(await blob.arrayBuffer());
     fs.writeFileSync(this.file, data);
 
-    this.reload();
+    this.dirty = true;
   }
 }

@@ -1,39 +1,12 @@
 import { useEffect, useState } from 'react';
-import {
-  ActionState,
-  AgeRating,
-  BlackAndWhite,
-  Entry,
-  Manga,
-  Metadata,
-  metadataKey,
-} from './types';
+import { ActionState, Entry } from './types';
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  InfoCircledIcon,
   TriangleLeftIcon,
   TriangleRightIcon,
   UpdateIcon,
 } from '@radix-ui/react-icons';
-import { Badge } from '@/components/ui/badge';
 import { API } from './api';
 
 export function CoverSelector({

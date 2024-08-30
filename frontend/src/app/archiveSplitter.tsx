@@ -227,8 +227,6 @@ export function ArchiveSplitter({
             </Button>
             {splitStatus === ActionState.FAILED ? (
               <Badge variant={'destructive'}>Split Archive Failed</Badge>
-            ) : splitStatus === ActionState.SUCCESS ? (
-              <Badge variant={'default'}>Split Archive Finished</Badge>
             ) : null}
           </div>
         </div>

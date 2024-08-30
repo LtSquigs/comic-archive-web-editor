@@ -173,6 +173,7 @@ export function EntriesEditor({
   entries = [],
   onEntriesChanged,
 }: EntriesProps) {
+  const [exifStatus, setExifStatus] = useState(ActionState.NONE);
   const [flattenStatus, setFlattenStatus] = useState(ActionState.NONE);
   const [renameStatus, setRenameStatus] = useState(ActionState.NONE);
   const [mappedEntries, setMappedEntries] = useState<string[]>([]);
@@ -216,9 +217,25 @@ export function EntriesEditor({
     setFlattenStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
   };
 
+  const onRemoveExif = async () => {
+    setExifStatus(ActionState.INPROGRESS);
+    const success = await API.removeExif();
+    await onEntriesChanged();
+    setExifStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+  };
+
   return (
     <div className="h-fit mt-4 ml-1">
       <div className="flex flex-col gap-2">
+        <Button onClick={onRemoveExif}>
+          {exifStatus === ActionState.INPROGRESS ? (
+            <UpdateIcon className="mr-1 animate-spin" />
+          ) : null}{' '}
+          Remove EXIF From Entries
+        </Button>
+        {exifStatus === ActionState.FAILED ? (
+          <Badge variant={'destructive'}>Removing EXIF Failed</Badge>
+        ) : null}
         <Button onClick={onFlattenEntries}>
           {flattenStatus === ActionState.INPROGRESS ? (
             <UpdateIcon className="mr-1 animate-spin" />
@@ -227,8 +244,6 @@ export function EntriesEditor({
         </Button>
         {flattenStatus === ActionState.FAILED ? (
           <Badge variant={'destructive'}>Flattening Entries Failed</Badge>
-        ) : flattenStatus === ActionState.SUCCESS ? (
-          <Badge variant={'default'}>Flattening Entries Finished</Badge>
         ) : null}
       </div>
       {entries.length > 0 ? (
@@ -274,8 +289,6 @@ export function EntriesEditor({
                 </Button>
                 {renameStatus === ActionState.FAILED ? (
                   <Badge variant={'destructive'}>Renaming Entries Failed</Badge>
-                ) : renameStatus === ActionState.SUCCESS ? (
-                  <Badge variant={'default'}>Renaming Entries Finished</Badge>
                 ) : null}
               </div>
             </div>

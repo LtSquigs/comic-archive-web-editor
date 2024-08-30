@@ -81,9 +81,22 @@ export class API {
       return body.success;
     });
   }
+
   static async flattenEntries(): Promise<boolean> {
     return abortableRequest(async (signal) => {
       const resp = await fetch(`/cbz/flatten?${fileParam(API.files)}`, {
+        method: 'POST',
+        signal,
+      });
+      const body = await resp.json();
+
+      return body.success;
+    });
+  }
+
+  static async removeExif(): Promise<boolean> {
+    return abortableRequest(async (signal) => {
+      const resp = await fetch(`/cbz/removeExif?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });

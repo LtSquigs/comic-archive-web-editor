@@ -6,7 +6,6 @@ import { UpdateIcon } from '@radix-ui/react-icons';
 import { API } from './api';
 import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
-import { parse } from 'path';
 
 const validKeys = {
   title: /title/i,

@@ -225,8 +225,6 @@ export function PageMetadata({
             </Button>
             {metadataStatus === ActionState.FAILED ? (
               <Badge variant={'destructive'}>Saving Metadata Failed</Badge>
-            ) : metadataStatus === ActionState.SUCCESS ? (
-              <Badge variant={'default'}>Saving Metadata Finished</Badge>
             ) : null}
           </div>
         </div>
