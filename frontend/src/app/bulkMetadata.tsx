@@ -56,6 +56,51 @@ const validKeys = {
   GTIN: /GTIN/i,
 };
 
+const BlackAndWhiteReverse = {
+  Unknown: 'UNKNOWN',
+  No: 'NO',
+  Yes: 'YES',
+} as any;
+
+const MangaReverse = {
+  Unknown: 'UNKNOWN',
+  No: 'NO',
+  Yes: 'YES',
+  YesAndRightToLeft: 'YES_RTL',
+} as any;
+
+const AgeRatingReverse = {
+  Unknown: 'UNKNOWN',
+  'Adults Only 18+': 'ADULTS_ONLY',
+  'Early Childhood': 'EARLY_CHILDHOOD',
+  Everyone: 'EVERYONE',
+  'Everyone 10+': 'EVERYONE_10',
+  G: 'G',
+  'Kids to Adults': 'KIDS_TO_ADULTS',
+  M: 'M',
+  'MA15+': 'MA15',
+  'Mature 17+': 'MA17',
+  PG: 'PG',
+  'R18+': 'R18',
+  'Rating Pending': 'RATING_PENDING',
+  Teen: 'TEEN',
+  'X18+': 'X18',
+} as any;
+
+const PageTypeReverse = {
+  FrontCover: 'FRONT_COVER',
+  InnerCover: 'INNER_COVER',
+  Roundup: 'ROUNDUP',
+  Story: 'STORY',
+  Advertisement: 'ADVERTISEMENT',
+  Editorial: 'EDITORIAL',
+  Letters: 'LETTERS',
+  Preview: 'PREVIEW',
+  BackCover: 'BACK_COVER',
+  Other: 'OTHER',
+  Deleted: 'DELETED',
+} as any;
+
 export function BulkMetadata({ files }: { files: string[] }) {
   const [bulkStatus, setBulkStatus] = useState(ActionState.NONE);
   const [csvString, setCSVString] = useState('');
@@ -127,6 +172,25 @@ export function BulkMetadata({ files }: { files: string[] }) {
           parsed[mappedKey as metadataKey] === null
         ) {
           parsed[mappedKey as metadataKey] = null;
+        }
+      }
+
+      if (parsed.blackAndWhite) {
+        if (BlackAndWhiteReverse[parsed.blackAndWhite as any]) {
+          parsed.blackAndWhite =
+            BlackAndWhiteReverse[parsed.blackAndWhite as any];
+        }
+      }
+
+      if (parsed.manga) {
+        if (MangaReverse[parsed.manga as any]) {
+          parsed.manga = MangaReverse[parsed.manga as any];
+        }
+      }
+
+      if (parsed.ageRating) {
+        if (AgeRatingReverse[parsed.ageRating as any]) {
+          parsed.ageRating = AgeRatingReverse[parsed.ageRating as any];
         }
       }
 
