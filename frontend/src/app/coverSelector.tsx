@@ -1,0 +1,151 @@
+import { useEffect, useState } from 'react';
+import {
+  ActionState,
+  AgeRating,
+  BlackAndWhite,
+  Entry,
+  Manga,
+  Metadata,
+  metadataKey,
+} from './types';
+
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  InfoCircledIcon,
+  TriangleLeftIcon,
+  TriangleRightIcon,
+  UpdateIcon,
+} from '@radix-ui/react-icons';
+import { Badge } from '@/components/ui/badge';
+import { API } from './api';
+
+export function CoverSelector({
+  files = [],
+  entries = [],
+}: {
+  files: string[];
+  entries: Entry[];
+}) {
+  const [coverURL, setCoverURL] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [coverIdx, setCoverIdx] = useState(0);
+  const [coverStatus, setCoverStatus] = useState(ActionState.NONE);
+
+  useEffect(() => {
+    if (files.length > 1) {
+      setCoverURL('');
+      return;
+    }
+    setCoverURL(API.getCoverUrl() + '&rand=' + Math.random());
+  }, [files]);
+
+  const startEditing = () => {
+    setEditing(true);
+  };
+
+  const updatePage = (idx: number) => {
+    setCoverIdx(idx);
+  };
+
+  const setCover = async () => {
+    setCoverStatus(ActionState.INPROGRESS);
+    const success = await API.setCover(entries[coverIdx]);
+    setCoverStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+
+    setEditing(false);
+    setCoverIdx(0);
+    setCoverURL(API.getCoverUrl() + '&rand=' + Math.random());
+  };
+
+  if (editing) {
+    const currentEntry = entries[coverIdx];
+    return (
+      <div className="relative">
+        <img
+          src={`/cbz/image?files=${files[0]}&entry=${currentEntry.entryName}`}
+          className="max-w-full max-h-full"
+        />
+        {coverIdx - 1 >= 0 ? (
+          <div className="absolute h-full left-0 top-0 flex items-center">
+            <Button
+              variant={'ghost'}
+              className="h-full pl-1 pr-1 rounded-none bg-primary/30 hover:bg-primary/80 text-accent-foreground hover:text-slate-50"
+              onClick={() => {
+                updatePage(coverIdx - 1);
+              }}
+            >
+              <TriangleLeftIcon width={30} height={30} />
+            </Button>
+          </div>
+        ) : null}
+
+        {coverIdx + 1 < entries.length ? (
+          <div className="absolute h-full right-0 top-0 flex items-center">
+            <Button
+              variant={'ghost'}
+              className="h-full pl-1 pr-1 rounded-none bg-primary/30 hover:bg-primary/80 text-accent-foreground hover:text-slate-50"
+              onClick={() => {
+                updatePage(coverIdx + 1);
+              }}
+            >
+              <TriangleRightIcon width={30} height={30} />
+            </Button>
+          </div>
+        ) : null}
+
+        <Button
+          onClick={setCover}
+          className="absolute bottom-0 opacity-80"
+          style={{
+            width: 'calc(100% - 60px - 1rem)',
+            marginLeft: 'calc(30px + 0.5rem)',
+          }}
+        >
+          {coverStatus === ActionState.INPROGRESS ? (
+            <UpdateIcon className="mr-1 animate-spin" />
+          ) : null}{' '}
+          Set As Cover
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {coverURL === '' ? (
+        <div className="w-full h-full flex justify-center items-center">
+          <b>Multiple Files Selected</b>
+        </div>
+      ) : (
+        <div className="relative">
+          <img src={coverURL} className="max-w-full max-h-full" />
+          <Button
+            onClick={startEditing}
+            className="absolute bottom-0 opacity-80 w-full"
+          >
+            Change Cover
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default CoverSelector;

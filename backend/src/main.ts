@@ -1,7 +1,8 @@
 import express from 'express';
-import path from 'path';
+import { posix as path } from 'path';
 import { glob } from 'glob';
-import { CBZ } from './cbz';
+import { CBZ } from './cbz.js';
+import fs from 'fs';
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -19,7 +20,6 @@ const getArchives = async () => {
   const paths = await glob(path.join(dir, '**/*.cbz'));
   const replacer = new RegExp(`^${escapeRegExp(dir + path.sep) + '?'}`, '');
   const stripped = paths.map((rawPath) => rawPath.replace(replacer, ''));
-
   return stripped;
 };
 
@@ -62,6 +62,93 @@ app.get('/cbz/list', async (req, res) => {
   res.json({ paths: tree });
 });
 
+app.post('/cbz/image/join', async (req, res) => {
+  const files = getFiles(req);
+  const pairs = req.body || [];
+
+  if (files.length > 1) {
+    throw new Error('TOO MANY FILES');
+  }
+  const cbz = new CBZ(files[0]);
+
+  try {
+    await cbz.combineImages(pairs);
+  } finally {
+    cbz.close();
+  }
+  res.json({ success: true });
+});
+
+app.get('/cbz/image', async (req, res) => {
+  const files = getFiles(req);
+
+  if (files.length > 1) {
+    throw new Error('TOO MANY FILES');
+  }
+
+  const entry = req.query['entry'] as string;
+
+  const cbz = new CBZ(files[0]);
+
+  try {
+    let [img, mime] = await cbz.getImageByName(entry);
+
+    if (img === null) {
+      res.end();
+      return;
+    }
+    res.set('Content-Type', mime);
+    res.send(img);
+  } finally {
+    cbz.close();
+  }
+});
+
+app.get('/cbz/cover', async (req, res) => {
+  const files = getFiles(req);
+
+  if (files.length > 1) {
+    throw new Error('TOO MANY FILES');
+  }
+
+  const cbz = new CBZ(files[0]);
+
+  try {
+    let [img, mime] = await cbz.getCover();
+
+    if (img === null) {
+      res.end();
+      return;
+    }
+    res.set('Content-Type', mime);
+    res.send(img);
+  } finally {
+    cbz.close();
+  }
+});
+
+app.post('/cbz/cover', async (req, res) => {
+  const files = getFiles(req);
+  const newCover = (req.body || {}).entry;
+
+  if (files.length > 1) {
+    throw new Error('TOO MANY FILES');
+  }
+
+  if (!newCover) {
+    throw new Error('No Cover Selected');
+  }
+
+  const cbz = new CBZ(files[0]);
+  try {
+    await cbz.setCover(newCover);
+  } finally {
+    await cbz.close();
+  }
+
+  res.json({ success: true });
+});
+
 app.get('/cbz/entries', async (req, res) => {
   const files = getFiles(req);
 
@@ -70,7 +157,11 @@ app.get('/cbz/entries', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
-  res.json({ entries: cbz.entries() });
+  try {
+    res.json({ entries: await cbz.entries() });
+  } finally {
+    cbz.close();
+  }
 });
 
 app.post('/cbz/entries', async (req, res) => {
@@ -82,8 +173,33 @@ app.post('/cbz/entries', async (req, res) => {
   }
 
   const cbz = new CBZ(files[0]);
-  cbz.renameEntries(nameMap);
-  cbz.save();
+  try {
+    await cbz.renameEntries(nameMap);
+  } finally {
+    await cbz.close();
+  }
+
+  res.json({ success: true });
+});
+
+app.post('/cbz/split', async (req, res) => {
+  const files = getFiles(req);
+  const splits = req.body || [];
+
+  if (files.length > 1) {
+    throw new Error('TOO MANY FILES');
+  }
+
+  if (splits.length <= 0) {
+    return res.json({ success: true });
+  }
+
+  const cbz = new CBZ(files[0]);
+  try {
+    await cbz.split(splits);
+  } finally {
+    await cbz.close();
+  }
 
   res.json({ success: true });
 });
@@ -91,8 +207,19 @@ app.post('/cbz/entries', async (req, res) => {
 app.post('/cbz/flatten', async (req, res) => {
   for (let file of getFiles(req)) {
     const cbz = new CBZ(file);
-    cbz.flatten();
-    cbz.save();
+    try {
+      await cbz.flatten();
+    } finally {
+      await cbz.close();
+    }
+  }
+
+  res.json({ success: true });
+});
+
+app.post('/cbz/delete', async (req, res) => {
+  for (let file of getFiles(req)) {
+    fs.unlinkSync(file);
   }
 
   res.json({ success: true });
@@ -100,51 +227,62 @@ app.post('/cbz/flatten', async (req, res) => {
 
 app.get('/cbz/metadata', async (req, res) => {
   const files = getFiles(req);
+  let terminated = false;
 
-  const combinedInfo = files
-    .map((file) => {
-      const cbz = new CBZ(file);
-      return cbz.getMetadata();
-    })
-    .reduce((lastValue: any, currentValue: any): any => {
-      if (lastValue === undefined) {
-        const curValue = currentValue.copyOut();
-        return curValue;
+  req.on('close', () => {
+    terminated = true;
+  });
+
+  let idx = 0;
+  let allMetadata: any = undefined;
+  const loop = async () => {
+    if (terminated) {
+      res.end();
+      return;
+    }
+    if (idx >= files.length) {
+      if (files.length > 1) {
+        delete allMetadata['pages'];
       }
 
-      const currentObj = currentValue.copyOut();
-      for (const prop in currentObj) {
-        if (lastValue[prop] === null || lastValue[prop] === undefined) {
-          lastValue[prop] = currentObj[prop];
-          continue;
-        }
-
-        if (currentObj[prop] !== lastValue[prop] && prop !== 'pages') {
-          if (lastValue.conflict) {
-            if (currentObj[prop] !== null && currentObj !== undefined) {
-              lastValue.values.push(currentObj[prop]);
+      res.json({ metadata: allMetadata });
+      return;
+    }
+    const file = files[idx];
+    const cbz = new CBZ(file);
+    try {
+      const metadata = (await cbz.getMetadata()).copyOut();
+      if (allMetadata === undefined) {
+        allMetadata = metadata;
+      } else {
+        for (const prop in metadata) {
+          if (metadata[prop] !== allMetadata[prop] && prop !== 'pages') {
+            if (allMetadata.conflict) {
+              if (metadata[prop] !== null && metadata !== undefined) {
+                allMetadata.values.push(metadata[prop]);
+              }
+              continue;
             }
-
-            continue;
+            allMetadata[prop] = {
+              conflict: true,
+              values: [allMetadata[prop], metadata[prop]].filter(
+                (val) => val !== null && val !== undefined
+              ),
+            };
+          } else {
+            allMetadata[prop] = metadata[prop];
           }
-
-          lastValue[prop] = {
-            conflict: true,
-            values: [lastValue[prop], currentValue[prop]].filter(
-              (val) => val !== null && val !== undefined
-            ),
-          };
         }
       }
+    } finally {
+      cbz.close();
+    }
 
-      return lastValue;
-    }, undefined);
+    idx = idx + 1;
+    setImmediate(loop);
+  };
 
-  if (files.length > 1) {
-    delete combinedInfo['pages'];
-  }
-
-  res.json({ metadata: combinedInfo });
+  loop();
 });
 
 app.post('/cbz/metadata', async (req, res) => {
@@ -152,16 +290,19 @@ app.post('/cbz/metadata', async (req, res) => {
 
   for (let file of getFiles(req)) {
     const cbz = new CBZ(file);
-    const oldMetadata = cbz.getMetadata().copyOut();
+    try {
+      const oldMetadata = (await cbz.getMetadata()).copyOut();
 
-    for (let prop in newMetadata) {
-      if (newMetadata[prop] === undefined) {
-        delete newMetadata[prop];
+      for (let prop in newMetadata) {
+        if (newMetadata[prop] === undefined) {
+          delete newMetadata[prop];
+        }
       }
-    }
 
-    cbz.setMetadata({ ...oldMetadata, ...newMetadata });
-    cbz.save();
+      await cbz.setMetadata({ ...oldMetadata, ...newMetadata });
+    } finally {
+      await cbz.close();
+    }
   }
   res.json({ success: true });
 });

@@ -1,5 +1,5 @@
 import convert from 'xml-js-graphite';
-import { AgeRating, BlackAndWhite, Manga, Map } from './types';
+import { AgeRating, BlackAndWhite, Manga, Map } from './types.js';
 
 const find = (xmlEle: any, name: string): any => {
   return ((xmlEle || {}).elements || []).find((ele: any) => {
@@ -97,6 +97,8 @@ export class Page {
 export class ComicInfo implements Map {
   title: string | null = null;
   series: string | null = null;
+  localizedSeries: string | null = null;
+  seriesSort: string | null = null;
   number: string | null = null;
   count: number | null = null;
   volume: number | null = null;

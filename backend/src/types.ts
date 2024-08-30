@@ -2,6 +2,16 @@ export type Map = {
   [key: string]: any | undefined;
 };
 
+export type JoinPair = {
+  leftImage: string;
+  rightImage: string;
+};
+
+export type Split = {
+  suffix: string;
+  entries: string[];
+};
+
 export enum BlackAndWhite {
   UNKNOWN = 'Unknown',
   NO = 'No',
