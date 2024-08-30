@@ -107,13 +107,17 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
               // If shift, and we are adding, check selectGroups to get more than one
               let newSelectedIds = [] as string[];
               if (event.shiftKey && lastSelectedId && selectGroups) {
-                let groupIds = [id];
+                let groupIds = prev?.includes(id) ? [] : [id];
                 for (let group of selectGroups) {
                   if (group.includes(id) && group.includes(lastSelectedId)) {
                     let inBlock = false;
                     for (let entry of group) {
                       if (entry === id || entry === lastSelectedId) {
                         inBlock = !inBlock;
+                      }
+
+                      if (prev?.includes(entry)) {
+                        continue;
                       }
 
                       if (inBlock) {

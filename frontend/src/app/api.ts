@@ -129,6 +129,29 @@ export class API {
     });
   }
 
+  static async setBulkMetadata(metadata: {
+    [key: string]: Metadata;
+  }): Promise<boolean> {
+    if (API.files.length < 1) {
+      return true;
+    }
+
+    return abortableRequest(async (signal) => {
+      const resp = await fetch(`/cbz/metadata/bulk`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files, metadata }),
+        signal,
+      });
+      const body = await resp.json();
+
+      return body.success;
+    });
+  }
+
   static getCoverUrl(): string {
     if (API.files.length > 1) {
       return '';

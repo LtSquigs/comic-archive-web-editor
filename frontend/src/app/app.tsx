@@ -17,6 +17,7 @@ import PageMetadata from './pageMetadata';
 import ArchiveSplitter from './archiveSplitter';
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
+import BulkMetadata from './bulkMetadata';
 
 export function App() {
   const [files, setFiles] = useState<FileTree>({});
@@ -96,6 +97,7 @@ export function App() {
           {selectedFiles.length > 0 ? (
             <>
               <Tabs
+                className={selectedTab === 'bulk' ? 'h-full' : ''}
                 value={selectedTab}
                 onValueChange={(value: any) => {
                   setSelectedTab(value);
@@ -115,6 +117,9 @@ export function App() {
                     disabled={selectedFiles.length > 1}
                   >
                     Archive Splitter
+                  </TabsTrigger>
+                  <TabsTrigger value="bulk" disabled={selectedFiles.length < 1}>
+                    Bulk Metadata
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="metadata">
@@ -184,6 +189,13 @@ export function App() {
                       file={selectedFiles[0]}
                       onSplit={refreshFiles}
                     ></ArchiveSplitter>
+                  )}
+                </TabsContent>
+                <TabsContent value="bulk" className="h-full">
+                  {loading === ActionState.INPROGRESS ? (
+                    <Skeleton className="w-[400px] h-[30px]" />
+                  ) : (
+                    <BulkMetadata files={selectedFiles}></BulkMetadata>
                   )}
                 </TabsContent>
               </Tabs>

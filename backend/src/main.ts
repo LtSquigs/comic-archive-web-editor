@@ -45,6 +45,28 @@ const getFiles = (req: express.Request) => {
   return fileNames;
 };
 
+const getFileFromBody = (req: express.Request) => {
+  let files = (req.body.files || []) as string | string[];
+
+  if (typeof files === 'string') {
+    files = [files];
+  }
+
+  const fileNames = files.map((file) => {
+    // Normalizes away path traversal
+    const normalized = path.join('/', file);
+    const fullName = path.join(dir, normalized);
+
+    return [file, fullName];
+  });
+
+  if (fileNames.length === 0) {
+    throw new Error('FILE DOES NOT EXIST');
+  }
+
+  return fileNames;
+};
+
 app.get('/cbz/list', async (req, res) => {
   const files = await getArchives();
   const tree = {};
@@ -292,6 +314,29 @@ app.post('/cbz/metadata', async (req, res) => {
     const cbz = new CBZ(file);
     try {
       const oldMetadata = (await cbz.getMetadata()).copyOut();
+
+      for (let prop in newMetadata) {
+        if (newMetadata[prop] === undefined) {
+          delete newMetadata[prop];
+        }
+      }
+
+      await cbz.setMetadata({ ...oldMetadata, ...newMetadata });
+    } finally {
+      await cbz.close();
+    }
+  }
+  res.json({ success: true });
+});
+
+app.post('/cbz/metadata/bulk', async (req, res) => {
+  const metadata = req.body.metadata || {};
+
+  for (let [file, fullName] of getFileFromBody(req)) {
+    const cbz = new CBZ(fullName);
+    try {
+      const oldMetadata = (await cbz.getMetadata()).copyOut();
+      const newMetadata = metadata[file];
 
       for (let prop in newMetadata) {
         if (newMetadata[prop] === undefined) {
