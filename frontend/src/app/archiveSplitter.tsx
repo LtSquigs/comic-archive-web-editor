@@ -51,7 +51,16 @@ export function ArchiveSplitter({
       suffix: markerSuffix,
     };
 
-    setMarkerSuffix('');
+    const endingNumberMatch = markerSuffix.match(/(.* )(\d+)$/);
+
+    if (endingNumberMatch) {
+      const pre = endingNumberMatch[1];
+      const num = parseInt(endingNumberMatch[2]) + 1;
+
+      setMarkerSuffix(`${pre}${num}`);
+    } else {
+      setMarkerSuffix('');
+    }
 
     if (existingMarker) {
       setSplitMarkers((prevValue) => {

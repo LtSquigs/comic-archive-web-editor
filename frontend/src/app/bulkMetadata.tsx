@@ -6,53 +6,54 @@ import { UpdateIcon } from '@radix-ui/react-icons';
 import { API } from './api';
 import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
+import { parse } from 'path';
 
 const validKeys = {
-  title: true,
-  series: true,
-  localizedSeries: true,
-  seriesSort: true,
-  number: true,
-  count: true,
-  volume: true,
-  alternateSeries: true,
-  alternateNumber: true,
-  alternateCount: true,
-  summary: true,
-  notes: true,
-  year: true,
-  month: true,
-  date: true,
-  writer: true,
-  penciller: true,
-  inker: true,
-  colorist: true,
-  letterer: true,
-  coverArtist: true,
-  editor: true,
-  translator: true,
-  publisher: true,
-  imprint: true,
-  genre: true,
-  tags: true,
-  web: true,
-  pageCount: true,
-  languageISO: true,
-  format: true,
-  blackAndWhite: true,
-  manga: true,
-  characters: true,
-  teams: true,
-  locations: true,
-  scanInformation: true,
-  storyArc: true,
-  storyArcNumber: true,
-  seriesGroup: true,
-  ageRating: true,
-  communityRating: true,
-  mainCharacterOrTeam: true,
-  review: true,
-  GTIN: true,
+  title: /title/i,
+  series: /series/i,
+  localizedSeries: /localizedSeries/i,
+  seriesSort: /seriesSort/i,
+  number: /number/i,
+  count: /count/i,
+  volume: /volume/i,
+  alternateSeries: /alternateSeries/i,
+  alternateNumber: /alternateNumber/i,
+  alternateCount: /alternateCount/i,
+  summary: /summary/i,
+  notes: /notes/i,
+  year: /year/i,
+  month: /month/i,
+  date: /date/i,
+  writer: /writer/i,
+  penciller: /penciller/i,
+  inker: /inker/i,
+  colorist: /colorist/i,
+  letterer: /letterer/i,
+  coverArtist: /coverArtist/i,
+  editor: /editor/i,
+  translator: /translator/i,
+  publisher: /publisher/i,
+  imprint: /imprint/i,
+  genre: /genre/i,
+  tags: /tags/i,
+  web: /web/i,
+  pageCount: /pageCount/i,
+  languageISO: /languageISO/i,
+  format: /format/i,
+  blackAndWhite: /blackAndWhite/i,
+  manga: /manga/i,
+  characters: /characters/i,
+  teams: /teams/i,
+  locations: /locations/i,
+  scanInformation: /scanInformation/i,
+  storyArc: /storyArc/i,
+  storyArcNumber: /storyArcNumber/i,
+  seriesGroup: /selectGroups/i,
+  ageRating: /ageRating/i,
+  communityRating: /communityRating/i,
+  mainCharacterOrTeam: /mainCharacterOrTeam/i,
+  review: /review/i,
+  GTIN: /GTIN/i,
 };
 
 export function BulkMetadata({ files }: { files: string[] }) {
@@ -68,9 +69,11 @@ export function BulkMetadata({ files }: { files: string[] }) {
   const uploadMetadata = async () => {
     setBulkStatus(ActionState.INPROGRESS);
 
-    const result = Papa.parse<Metadata>(csvString, { header: true });
+    const result = Papa.parse<Metadata>(csvString, {
+      header: true,
+      dynamicTyping: true,
+    });
     const data = result.data;
-    const errors = result.errors;
 
     if (data.length != files.length) {
       setBulkStatus(ActionState.FAILED);
@@ -78,6 +81,28 @@ export function BulkMetadata({ files }: { files: string[] }) {
         `The number of CSV rows provided does not match the number of selected files.`
       );
       return;
+    }
+
+    const fieldMap = {} as { [key: string]: string };
+
+    for (let field of result.meta.fields || []) {
+      let foundKey = false;
+      for (let key in validKeys) {
+        const regex = (validKeys as any)[key];
+        if (field.match(regex)) {
+          foundKey = true;
+          fieldMap[field] = key;
+          break;
+        }
+      }
+      // Camelcase converter here
+      if (!foundKey) {
+        setBulkStatus(ActionState.FAILED);
+        setCSVError(
+          `This CSV contains invalid field "${field}" for the ComicInfo schema.`
+        );
+        return;
+      }
     }
 
     const orderedFiles = [...files];
@@ -91,20 +116,17 @@ export function BulkMetadata({ files }: { files: string[] }) {
       const file = orderedFiles[i];
 
       for (let key in parsed) {
-        if (!(key in validKeys)) {
-          setBulkStatus(ActionState.FAILED);
-          setCSVError(
-            `This CSV contains invalid field "${key}" for the ComicInfo schema.`
-          );
-          return;
+        const mappedKey = fieldMap[key];
+        if (key !== mappedKey) {
+          (parsed as any)[mappedKey] = parsed[key as metadataKey];
+          delete parsed[key as metadataKey];
         }
-
         if (
-          parsed[key as metadataKey] === '' ||
-          parsed[key as metadataKey] === undefined ||
-          parsed[key as metadataKey] === null
+          parsed[mappedKey as metadataKey] === '' ||
+          parsed[mappedKey as metadataKey] === undefined ||
+          parsed[mappedKey as metadataKey] === null
         ) {
-          parsed[key as metadataKey] = null;
+          parsed[mappedKey as metadataKey] = null;
         }
       }
 
