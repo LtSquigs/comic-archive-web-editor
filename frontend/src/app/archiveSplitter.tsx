@@ -26,7 +26,7 @@ export function ArchiveSplitter({
 }: {
   entries: Entry[];
   file: string;
-  onSplit: () => {};
+  onSplit: (splits: SplitMarker[]) => {};
 }) {
   const [splitStatus, setSplitStatus] = useState(ActionState.NONE);
   const [newFileName, setNewFileName] = useState<string>('');
@@ -184,7 +184,7 @@ export function ArchiveSplitter({
     setNewFileName(file);
     setSplitMarkers([]);
 
-    onSplit();
+    onSplit(splitMarkers);
   };
 
   const renderControls = (index: number) => {

@@ -1,4 +1,4 @@
-import { ReactElement, useEffect, useState } from 'react';
+import { ReactElement, useEffect, useRef, useState } from 'react';
 import { Entry } from './types';
 
 import { Separator } from '@/components/ui/separator';
@@ -22,20 +22,32 @@ export function ImageList({
 }) {
   const [currentEntry, setCurrentEntry] = useState(null as Entry | null);
   const [currentEntryIdx, setCurrentEntryIdx] = useState(0);
+  const buttonsRef = useRef<Map<string, HTMLButtonElement> | null>(null);
+
+  function getButtonRefs() {
+    if (!buttonsRef.current) {
+      buttonsRef.current = new Map();
+    }
+    return buttonsRef.current;
+  }
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (['INPUT', 'BUTTON'].includes((event.target as any).tagName)) {
         return;
       }
-      console.log(event.target);
       const increment = event.shiftKey ? 2 : 1;
+      const refs = getButtonRefs();
       if (event.key === 'ArrowRight') {
         if (currentEntryIdx + increment < entries.length) {
           changePage(
             entries[currentEntryIdx + increment],
             currentEntryIdx + increment
           );
+
+          refs
+            .get(entries[currentEntryIdx + increment].entryName)
+            ?.scrollIntoView();
         }
 
         event.stopPropagation();
@@ -48,7 +60,12 @@ export function ImageList({
             entries[currentEntryIdx - increment],
             currentEntryIdx - increment
           );
+
+          refs
+            .get(entries[currentEntryIdx - increment].entryName)
+            ?.scrollIntoView();
         }
+
         event.stopPropagation();
         event.preventDefault();
       }
@@ -127,6 +144,14 @@ export function ImageList({
                 }
                 onClick={() => {
                   changePage(entry, idx);
+                }}
+                ref={(node) => {
+                  const refs = getButtonRefs();
+                  if (node) {
+                    refs.set(entry.entryName, node);
+                  } else {
+                    refs.delete(entry.entryName);
+                  }
                 }}
               >
                 {entry.entryName}

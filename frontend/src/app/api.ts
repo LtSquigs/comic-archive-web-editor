@@ -1,5 +1,6 @@
 import {
-  FileTree,
+  //FileTree,
+  FileEntry,
   Entry,
   Metadata,
   JoinEntry,
@@ -38,7 +39,6 @@ const fileParam = (files: string[] = []) => {
 
   return params.toString();
 };
-
 export class API {
   static files: string[] = [];
 
@@ -46,11 +46,20 @@ export class API {
     API.files = files;
   }
 
-  static async getAllCBZ() {
-    const resp = await fetch('/cbz/list');
+  static async getCBZFiles(
+    subdir: string = ''
+  ): Promise<APIResult<FileEntry[]>> {
+    const params = new URLSearchParams();
+    params.append('prefix', subdir);
+
+    const resp = await fetch(`/cbz/list?${params.toString()}`);
     const body = await resp.json();
 
-    return body.paths as FileTree;
+    if (body.error) {
+      return { data: [], error: true, errorStr: body.error };
+    }
+
+    return { data: body.paths, error: false };
   }
 
   static async getEntries(): Promise<APIResult<Entry[]>> {

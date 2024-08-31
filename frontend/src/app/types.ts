@@ -1,9 +1,8 @@
-export type FileTree = {
-  [key: string]: FileTree | string;
-};
-
 export type FileEntry = {
+  directory: boolean;
   name: string;
+  path: string;
+  parentPath: string;
 };
 
 export type Entry = {

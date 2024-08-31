@@ -61,6 +61,8 @@ type TreeViewProps = {
   multiSelect?: boolean;
   selectGroups?: string[][];
   onValueChange?: (value: string | string[] | undefined) => void;
+  onToggleOpen?: (value: string) => void;
+  onToggleClose?: (value: string) => void;
 } & TreeViewComponentProps;
 
 const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
@@ -78,6 +80,8 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       onValueChange,
       dir,
       selectGroups,
+      onToggleOpen,
+      onToggleClose,
       ...props
     },
     ref
@@ -151,14 +155,20 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       if (onValueChange) onValueChange(selectedId);
     }, [selectedId]);
 
-    const handleExpand = useCallback((id: string) => {
-      setExpendedItems((prev) => {
-        if (prev?.includes(id)) {
-          return prev.filter((item) => item !== id);
-        }
-        return [...(prev ?? []), id];
-      });
-    }, []);
+    const handleExpand = useCallback(
+      (id: string) => {
+        setExpendedItems((prev) => {
+          if (prev?.includes(id)) {
+            if (onToggleClose) onToggleClose(id);
+            return prev.filter((item) => item !== id);
+          }
+
+          if (onToggleOpen) onToggleOpen(id);
+          return [...(prev ?? []), id];
+        });
+      },
+      [onToggleOpen]
+    );
 
     const expandSpecificTargetedElements = useCallback(
       (elements?: TreeViewElement[], selectId?: string) => {
@@ -202,6 +212,16 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
         expandSpecificTargetedElements(elements, initialSelectedId);
       }
     }, [initialSelectedId, elements]);
+
+    useEffect(() => {
+      setSelectedId(
+        multiSelect
+          ? initialSelectedId
+            ? [initialSelectedId]
+            : []
+          : initialSelectedId
+      );
+    }, [initialSelectedId, multiSelect]);
 
     const direction = dir === 'rtl' ? 'rtl' : 'ltr';
 

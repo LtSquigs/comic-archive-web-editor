@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { API } from './api';
 import FileList from './fileList';
 import MetadataEditor from './metadata';
 import EntriesEditor from './entries';
-import { FileTree, Entry, Metadata, ActionState } from './types';
+import { Entry, Metadata, ActionState, FileEntry, SplitMarker } from './types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResizableHandle,
@@ -21,32 +21,21 @@ import BulkMetadata from './bulkMetadata';
 import { useToast } from '@/hooks/use-toast';
 
 export function App() {
-  const [files, setFiles] = useState<FileTree>({});
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [metadata, setMetadata] = useState<Metadata>({});
   const [entries, setEntries] = useState<Entry[]>([]);
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [selectedTab, setSelectedTab] = useState('metadata');
   const [loading, setLoading] = useState(ActionState.NONE);
+  const [defaultSelectedFile, setDefaultSelectedFile] = useState<
+    string | undefined
+  >(undefined);
+  const fileRef = useRef(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    (async () => {
-      const files = await API.getAllCBZ();
-      setFiles(files);
-    })();
-  }, []);
 
   useEffect(() => {
     API.setFiles(selectedFiles);
   }, [selectedFiles]);
-
-  useEffect(() => {
-    setDeleteStatus(ActionState.NONE);
-    setSelectedFiles([]);
-    setEntries([]);
-    setMetadata({});
-  }, [files]);
 
   useEffect(() => {
     (async () => {
@@ -105,9 +94,13 @@ export function App() {
     setEntries(entries);
   };
 
-  const refreshFiles = async () => {
-    const files = await API.getAllCBZ();
-    setFiles(files);
+  const refreshFiles = async (selectedFile: string | undefined = undefined) => {
+    if (fileRef.current) await (fileRef.current as any).refresh();
+    setDeleteStatus(ActionState.NONE);
+    setSelectedFiles(selectedFile ? [selectedFile] : []);
+    setDefaultSelectedFile(selectedFile);
+    setEntries([]);
+    setMetadata({});
   };
 
   const onDelete = async () => {
@@ -131,7 +124,11 @@ export function App() {
     <ResizablePanelGroup direction="horizontal">
       <ResizablePanel defaultSize={20}>
         <ScrollArea className="h-[100vh] rounded-md  p-4">
-          <FileList files={files} onUpdateSelected={handleUpdateSelected} />
+          <FileList
+            initialSelectedId={defaultSelectedFile}
+            onUpdateSelected={handleUpdateSelected}
+            ref={fileRef}
+          />
         </ScrollArea>
       </ResizablePanel>
       <ResizableHandle />
@@ -218,6 +215,7 @@ export function App() {
                         (entry) => entry.isImage && !entry.isCover
                       )}
                       file={selectedFiles[0]}
+                      onJoin={refreshEntries}
                     />
                   )}
                 </TabsContent>
@@ -230,7 +228,9 @@ export function App() {
                         (entry) => entry.isImage && !entry.isCover
                       )}
                       file={selectedFiles[0]}
-                      onSplit={refreshFiles}
+                      onSplit={async (splits: SplitMarker[]) => {
+                        await refreshFiles(splits[0].filename);
+                      }}
                     ></ArchiveSplitter>
                   )}
                 </TabsContent>

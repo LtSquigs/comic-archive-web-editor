@@ -1,8 +1,8 @@
 import express from 'express';
 import { posix as path } from 'path';
-import { glob } from 'glob';
-import { CBZ } from './cbz.js';
+import { Archive } from './archive.js';
 import fs from 'fs';
+import { CBZReader } from './cbz.js';
 
 const host = process.env.HOST ?? 'localhost';
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
@@ -16,11 +16,30 @@ function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-const getArchives = async () => {
-  const paths = await glob(path.join(dir, '**/*.cbz'));
-  const replacer = new RegExp(`^${escapeRegExp(dir + path.sep) + '?'}`, '');
-  const stripped = paths.map((rawPath) => rawPath.replace(replacer, ''));
-  return stripped;
+const allowedExtensions = CBZReader.extensions;
+const getArchivesRelative = async (relativeDir: string) => {
+  const baseDir = path.join(dir, relativeDir);
+  const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+
+  return entries
+    .filter((entry) => {
+      if (
+        !entry.isDirectory() &&
+        !allowedExtensions.includes(path.extname(entry.name).toLowerCase())
+      )
+        return false;
+
+      return true;
+    })
+    .map((entry) => {
+      const replacer = new RegExp(`^${escapeRegExp(dir + path.sep) + '?'}`, '');
+      return {
+        directory: entry.isDirectory(),
+        name: entry.name,
+        parentPath: entry.parentPath.replace(replacer, ''),
+        path: path.join(entry.parentPath.replace(replacer, ''), entry.name),
+      };
+    });
 };
 
 const getFiles = (req: express.Request) => {
@@ -68,20 +87,9 @@ const getFileFromBody = (req: express.Request) => {
 };
 
 app.get('/cbz/list', async (req, res) => {
-  const files = await getArchives();
-  const tree = {};
-  for (let file of files.sort()) {
-    const parts = file.split(path.sep);
-    let level: any = tree;
-    for (let part of parts) {
-      level[part] = level[part] || {};
-      level = level[part];
-    }
-
-    level.name = file;
-  }
-
-  res.json({ paths: tree });
+  const prefix = (req.query['prefix'] || '') as string;
+  const files = await getArchivesRelative(prefix);
+  res.json({ paths: files });
 });
 
 app.post('/cbz/image/join', async (req, res) => {
@@ -91,7 +99,7 @@ app.post('/cbz/image/join', async (req, res) => {
   if (files.length > 1) {
     throw new Error('TOO MANY FILES');
   }
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
 
   try {
@@ -111,7 +119,7 @@ app.get('/cbz/image', async (req, res) => {
 
   const entry = req.query['entry'] as string;
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
 
   try {
@@ -135,7 +143,7 @@ app.get('/cbz/cover', async (req, res) => {
     throw new Error('TOO MANY FILES');
   }
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
 
   try {
@@ -164,7 +172,7 @@ app.post('/cbz/cover', async (req, res) => {
     throw new Error('No Cover Selected');
   }
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
   try {
     await cbz.setCover(newCover);
@@ -182,7 +190,7 @@ app.get('/cbz/entries', async (req, res) => {
     throw new Error('TOO MANY FILES');
   }
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
   try {
     res.json({ entries: await cbz.entries() });
@@ -199,7 +207,7 @@ app.post('/cbz/entries', async (req, res) => {
     throw new Error('TOO MANY FILES');
   }
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
   try {
     await cbz.renameEntries(nameMap);
@@ -222,7 +230,7 @@ app.post('/cbz/split', async (req, res) => {
     return res.json({ success: true });
   }
 
-  const cbz = new CBZ(files[0]);
+  const cbz = new Archive(files[0]);
   await cbz.load();
   try {
     await cbz.split(dir, splits);
@@ -235,7 +243,7 @@ app.post('/cbz/split', async (req, res) => {
 
 app.post('/cbz/flatten', async (req, res) => {
   for (let file of getFiles(req)) {
-    const cbz = new CBZ(file);
+    const cbz = new Archive(file);
     await cbz.load();
     try {
       await cbz.flatten();
@@ -249,7 +257,7 @@ app.post('/cbz/flatten', async (req, res) => {
 
 app.post('/cbz/removeExif', async (req, res) => {
   for (let file of getFiles(req)) {
-    const cbz = new CBZ(file);
+    const cbz = new Archive(file);
     await cbz.load();
     try {
       await cbz.removeExif();
@@ -293,7 +301,7 @@ app.get('/cbz/metadata', async (req, res) => {
       return;
     }
     const file = files[idx];
-    const cbz = new CBZ(file);
+    const cbz = new Archive(file);
     await cbz.load();
     try {
       const metadata = (await cbz.getMetadata()).copyOut();
@@ -334,7 +342,7 @@ app.post('/cbz/metadata', async (req, res) => {
   const newMetadata = req.body || {};
 
   for (let file of getFiles(req)) {
-    const cbz = new CBZ(file);
+    const cbz = new Archive(file);
     await cbz.load();
     try {
       const oldMetadata = (await cbz.getMetadata()).copyOut();
@@ -357,7 +365,7 @@ app.post('/cbz/metadata/bulk', async (req, res) => {
   const metadata = req.body.metadata || {};
 
   for (let [file, fullName] of getFileFromBody(req)) {
-    const cbz = new CBZ(fullName);
+    const cbz = new Archive(fullName);
     await cbz.load();
     try {
       const oldMetadata = (await cbz.getMetadata()).copyOut();

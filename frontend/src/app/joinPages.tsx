@@ -20,9 +20,11 @@ import { Label } from '@/components/ui/label';
 export function JoinPages({
   entries,
   file,
+  onJoin,
 }: {
   entries: Entry[];
   file: string;
+  onJoin: () => {};
 }) {
   const [joinStatus, setJoinStatus] = useState(ActionState.NONE);
   const [numToJoin, setNumToJoin] = useState(0);
@@ -94,6 +96,7 @@ export function JoinPages({
     joinList.current = [];
     setJoinedImages({});
     setNumToJoin(0);
+    onJoin();
   };
 
   const renderImageControls = (index: number) => {
