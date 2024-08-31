@@ -4,7 +4,6 @@ import { ActionState, Entry, SplitMarker } from './types';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { UpdateIcon } from '@radix-ui/react-icons';
 import { Cross1Icon } from '@radix-ui/react-icons';
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { API } from './api';
+import { useToast } from '@/hooks/use-toast';
 
 export function ArchiveSplitter({
   entries,
@@ -29,16 +29,18 @@ export function ArchiveSplitter({
   onSplit: () => {};
 }) {
   const [splitStatus, setSplitStatus] = useState(ActionState.NONE);
-  const [markerSuffix, setMarkerSuffix] = useState<string>('');
+  const [newFileName, setNewFileName] = useState<string>('');
   const [splitMarkers, setSplitMarkers] = useState<SplitMarker[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
+    setNewFileName(file);
     setSplitStatus(ActionState.NONE);
     setSplitMarkers([]);
   }, [file, entries]);
 
-  const updateMarkerSuffix = (suffix: string) => {
-    setMarkerSuffix(suffix);
+  const updateNewFileName = (newFileName: string) => {
+    setNewFileName(newFileName);
   };
 
   const addSplitMarker = (entry: Entry) => {
@@ -48,18 +50,19 @@ export function ArchiveSplitter({
     const newMarker = {
       startEntry: entry.entryName,
       endEntry: '',
-      suffix: markerSuffix,
+      filename: newFileName,
     };
 
-    const endingNumberMatch = markerSuffix.match(/(.* )(\d+)$/);
+    const endingNumberMatch = newFileName.match(/(.* )(\d+)\.([^.]+)$/);
 
     if (endingNumberMatch) {
       const pre = endingNumberMatch[1];
       const num = parseInt(endingNumberMatch[2]) + 1;
+      const ext = endingNumberMatch[3];
 
-      setMarkerSuffix(`${pre}${num}`);
+      setNewFileName(`${pre}${num}.${ext}`);
     } else {
-      setMarkerSuffix('');
+      setNewFileName(file);
     }
 
     if (existingMarker) {
@@ -68,7 +71,7 @@ export function ArchiveSplitter({
         const oldMarker = prevValue.find(
           (marker) => marker.startEntry === entry.entryName
         );
-        (oldMarker || ({} as any)).suffix = newMarker.suffix;
+        (oldMarker || ({} as any)).filename = newMarker.filename;
 
         return newArray;
       });
@@ -101,7 +104,7 @@ export function ArchiveSplitter({
             calculatedArray.push({
               startEntry: curEntry.startEntry,
               endEntry: prevEntry.entryName,
-              suffix: curEntry.suffix,
+              filename: curEntry.filename,
             });
           }
 
@@ -112,7 +115,7 @@ export function ArchiveSplitter({
           calculatedArray.push({
             startEntry: curEntry.startEntry,
             endEntry: prevEntry.entryName,
-            suffix: curEntry.suffix,
+            filename: curEntry.filename,
           });
         }
       }
@@ -121,10 +124,10 @@ export function ArchiveSplitter({
     });
   };
 
-  const removeMarker = (entry: Entry) => {
+  const removeMarker = (entry: string) => {
     setSplitMarkers((prevValue) => {
-      const newArray = prevValue.filter(
-        (marker) => marker.startEntry !== entry.entryName
+      const newArray = (prevValue || []).filter(
+        (marker) => marker.startEntry !== entry
       );
       const calculatedArray: SplitMarker[] = [];
       for (let i = 0; i < newArray.length; i++) {
@@ -140,7 +143,7 @@ export function ArchiveSplitter({
             calculatedArray.push({
               startEntry: curEntry.startEntry,
               endEntry: prevEntry.entryName,
-              suffix: curEntry.suffix,
+              filename: curEntry.filename,
             });
           }
 
@@ -151,7 +154,7 @@ export function ArchiveSplitter({
           calculatedArray.push({
             startEntry: curEntry.startEntry,
             endEntry: prevEntry.entryName,
-            suffix: curEntry.suffix,
+            filename: curEntry.filename,
           });
         }
       }
@@ -162,9 +165,23 @@ export function ArchiveSplitter({
 
   const splitArchive = async () => {
     setSplitStatus(ActionState.INPROGRESS);
-    const success = await API.splitArchive(splitMarkers, entries);
-    setSplitStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
-    setMarkerSuffix('');
+    const {
+      data: success,
+      error,
+      errorStr,
+    } = await API.splitArchive(splitMarkers, entries);
+    setSplitStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Splitting archive completed.'
+          : `Error occured while splitting archive: ${errorStr}.`,
+    });
+
+    setNewFileName(file);
     setSplitMarkers([]);
 
     onSplit();
@@ -175,10 +192,32 @@ export function ArchiveSplitter({
       <ScrollArea className="h-full min-w-[400px]">
         <div className="pl-4 pr-4 gap-4 flex flex-col">
           <h6 className="text-xl font-semibold mb-2">Split Markers</h6>
+
+          <p className="text-sm text-muted-foreground">
+            Instructions:
+            <ol className="list-decimal list-inside">
+              <li className="mt-2">
+                Navigate to image that you want to start new archive from using
+                left and right arrow keys.
+              </li>
+              <li className="mt-2">
+                Enter a filename for the new archive and click add split marker
+              </li>
+              <li className="mt-2">
+                Once all markers have been added, click the Split Archive button
+              </li>
+            </ol>
+          </p>
+
+          <p className="text-xs text-muted-foreground">
+            Note: If your filename ends with a number (e.g. "Ch 12") the system
+            will pre-fill the marker input with the next number in the series
+            (e.g. "Ch 13") for conveinence.
+          </p>
           <Input
-            value={markerSuffix}
+            value={newFileName}
             onChange={(event) => {
-              updateMarkerSuffix(event.target.value);
+              updateNewFileName(event.target.value);
             }}
           ></Input>
           <Button onClick={() => addSplitMarker(entries[index])}>
@@ -190,7 +229,7 @@ export function ArchiveSplitter({
               <TableRow>
                 <TableHead>Entry Start</TableHead>
                 <TableHead>Entry End</TableHead>
-                <TableHead>File Suffix</TableHead>
+                <TableHead>File Name</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -200,10 +239,10 @@ export function ArchiveSplitter({
                   <TableRow>
                     <TableCell>{item.startEntry}</TableCell>
                     <TableCell>{item.endEntry}</TableCell>
-                    <TableCell>{item.suffix}</TableCell>
+                    <TableCell>{item.filename}</TableCell>
                     <TableCell className="cursor-pointer">
                       <Cross1Icon
-                        onClick={() => removeMarker(entries[index])}
+                        onClick={() => removeMarker(item.startEntry)}
                       ></Cross1Icon>
                     </TableCell>
                   </TableRow>
@@ -225,9 +264,6 @@ export function ArchiveSplitter({
               ) : null}{' '}
               Split Archive
             </Button>
-            {splitStatus === ActionState.FAILED ? (
-              <Badge variant={'destructive'}>Split Archive Failed</Badge>
-            ) : null}
           </div>
         </div>
       </ScrollArea>

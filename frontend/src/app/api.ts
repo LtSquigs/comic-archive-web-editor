@@ -1,4 +1,11 @@
-import { FileTree, Entry, Metadata, JoinEntry, SplitMarker } from './types';
+import {
+  FileTree,
+  Entry,
+  Metadata,
+  JoinEntry,
+  SplitMarker,
+  APIResult,
+} from './types';
 
 let abortController: AbortController | null = null;
 export const abortableRequest = async (
@@ -46,27 +53,33 @@ export class API {
     return body.paths as FileTree;
   }
 
-  static async getEntries(): Promise<Entry[]> {
+  static async getEntries(): Promise<APIResult<Entry[]>> {
     if (API.files.length !== 1) {
-      return [];
+      return { data: [], error: false };
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<Entry[]>> => {
       const resp = await fetch(`/cbz/entries?${fileParam(API.files)}`, {
         signal,
       });
       const body = await resp.json();
 
-      return body.entries;
+      if (body.error) {
+        return { data: [], error: true, errorStr: body.error };
+      }
+
+      return { data: body.entries, error: false };
     });
   }
 
-  static async renameEntries(map: { [key: string]: string }): Promise<boolean> {
+  static async renameEntries(map: {
+    [key: string]: string;
+  }): Promise<APIResult<boolean>> {
     if (API.files.length !== 1) {
-      return false;
+      return { data: true, error: false };
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/entries?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
@@ -78,55 +91,71 @@ export class API {
       });
       const body = await resp.json();
 
-      return body.success;
+      if (body.error) {
+        return { data: false, error: false, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false, errorStr: '' };
     });
   }
 
-  static async flattenEntries(): Promise<boolean> {
-    return abortableRequest(async (signal) => {
+  static async flattenEntries(): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/flatten?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
       const body = await resp.json();
 
-      return body.success;
+      if (body.error) {
+        return { data: false, error: false, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false, errorStr: '' };
     });
   }
 
-  static async removeExif(): Promise<boolean> {
-    return abortableRequest(async (signal) => {
+  static async removeExif(): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/removeExif?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
       const body = await resp.json();
 
-      return body.success;
+      if (body.error) {
+        return { data: false, error: false, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false, errorStr: '' };
     });
   }
 
-  static async getMetadata(): Promise<Metadata> {
+  static async getMetadata(): Promise<APIResult<Metadata>> {
     if (API.files.length < 1) {
-      return {};
+      return { data: {}, error: false };
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<Metadata>> => {
       const resp = await fetch(`/cbz/metadata?${fileParam(API.files)}`, {
         signal,
       });
       const body = await resp.json();
 
-      return body.metadata;
+      if (body.error) {
+        return { data: {}, error: true, errorStr: body.error };
+      }
+
+      return { data: body.metadata, error: false };
     });
   }
 
-  static async setMetadata(metadata: Metadata): Promise<boolean> {
+  static async setMetadata(metadata: Metadata): Promise<APIResult<boolean>> {
     if (API.files.length < 1) {
-      return true;
+      return { error: false, data: true };
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/metadata?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
@@ -138,18 +167,21 @@ export class API {
       });
       const body = await resp.json();
 
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 
   static async setBulkMetadata(metadata: {
     [key: string]: Metadata;
-  }): Promise<boolean> {
+  }): Promise<APIResult<boolean>> {
     if (API.files.length < 1) {
-      return true;
+      return { error: false, data: true };
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/metadata/bulk`, {
         method: 'POST',
         headers: {
@@ -161,7 +193,10 @@ export class API {
       });
       const body = await resp.json();
 
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 
@@ -172,8 +207,8 @@ export class API {
     return `/cbz/cover?${fileParam(API.files)}`;
   }
 
-  static async setCover(entry: Entry) {
-    return abortableRequest(async (signal) => {
+  static async setCover(entry: Entry): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/cover?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
@@ -184,12 +219,15 @@ export class API {
         signal,
       });
       const body = await resp.json();
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 
-  static async joinImages(joinList: JoinEntry[]) {
-    return abortableRequest(async (signal) => {
+  static async joinImages(joinList: JoinEntry[]): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/image/join?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
@@ -200,22 +238,31 @@ export class API {
         signal,
       });
       const body = await resp.json();
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 
-  static async delete() {
-    return abortableRequest(async (signal) => {
+  static async delete(): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/delete?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
       const body = await resp.json();
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 
-  static async splitArchive(markers: SplitMarker[], entries: Entry[]) {
+  static async splitArchive(
+    markers: SplitMarker[],
+    entries: Entry[]
+  ): Promise<APIResult<boolean>> {
     const splits: any[] = [];
 
     markers.sort((a, b) => {
@@ -229,7 +276,7 @@ export class API {
     });
 
     for (let marker of markers) {
-      const mapEntry = { suffix: marker.suffix, entries: [] as string[] };
+      const mapEntry = { filename: marker.filename, entries: [] as string[] };
 
       let inBlock = false;
       for (let entry of entries) {
@@ -249,7 +296,7 @@ export class API {
       splits.push(mapEntry);
     }
 
-    return abortableRequest(async (signal) => {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/cbz/split?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
@@ -260,7 +307,10 @@ export class API {
         signal,
       });
       const body = await resp.json();
-      return body.success;
+      if (body.error) {
+        return { data: false, error: true, errorStr: body.error };
+      }
+      return { data: true, error: false };
     });
   }
 }

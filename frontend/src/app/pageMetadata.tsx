@@ -4,7 +4,6 @@ import { ActionState, Entry, Metadata, Page } from './types';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { UpdateIcon } from '@radix-ui/react-icons';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Label } from '@/components/ui/label';
@@ -12,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import ImageList from './imageList';
 import { API } from './api';
+import { useToast } from '@/hooks/use-toast';
 
 function PageMetadataEditor({
   pageNumber,
@@ -117,11 +117,20 @@ export function PageMetadata({
   const [metadataDirty, setMetadataDirty] = useState(false);
   const [currentMetadata, setCurrentMetadata] = useState<Metadata>({});
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
+  const { toast } = useToast();
 
   const onUpdateMetadata = async (metadata: Metadata) => {
     setMetadataStatus(ActionState.INPROGRESS);
-    const success = await API.setMetadata(metadata);
-    setMetadataStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    const { data: success, error, errorStr } = await API.setMetadata(metadata);
+    setMetadataStatus(ActionState.NONE);
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Saving page metadata completed.'
+          : `Error occured while saving page metadata: ${errorStr}.`,
+    });
   };
 
   useEffect(() => {
@@ -223,9 +232,6 @@ export function PageMetadata({
               ) : null}{' '}
               Save All Page Metadata
             </Button>
-            {metadataStatus === ActionState.FAILED ? (
-              <Badge variant={'destructive'}>Saving Metadata Failed</Badge>
-            ) : null}
           </div>
         </div>
       </ScrollArea>

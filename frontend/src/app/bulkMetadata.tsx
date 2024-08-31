@@ -6,6 +6,7 @@ import { UpdateIcon } from '@radix-ui/react-icons';
 import { API } from './api';
 import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
+import { useToast } from '@/hooks/use-toast';
 
 const validKeys = {
   title: /title/i,
@@ -103,11 +104,10 @@ const PageTypeReverse = {
 export function BulkMetadata({ files }: { files: string[] }) {
   const [bulkStatus, setBulkStatus] = useState(ActionState.NONE);
   const [csvString, setCSVString] = useState('');
-  const [csvError, setCSVError] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     setBulkStatus(ActionState.NONE);
-    setCSVError('');
   }, [files]);
 
   const uploadMetadata = async () => {
@@ -120,10 +120,12 @@ export function BulkMetadata({ files }: { files: string[] }) {
     const data = result.data;
 
     if (data.length != files.length) {
-      setBulkStatus(ActionState.FAILED);
-      setCSVError(
-        `The number of CSV rows provided does not match the number of selected files.`
-      );
+      setBulkStatus(ActionState.NONE);
+      toast({
+        title: 'Task Failed',
+        variant: 'destructive',
+        description: `The number of CSV rows provided does not match the number of selected files.`,
+      });
       return;
     }
 
@@ -141,10 +143,12 @@ export function BulkMetadata({ files }: { files: string[] }) {
       }
       // Camelcase converter here
       if (!foundKey) {
-        setBulkStatus(ActionState.FAILED);
-        setCSVError(
-          `This CSV contains invalid field "${field}" for the ComicInfo schema.`
-        );
+        setBulkStatus(ActionState.NONE);
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `This CSV contains invalid field "${field}" for the ComicInfo schema.`,
+        });
         return;
       }
     }
@@ -197,9 +201,21 @@ export function BulkMetadata({ files }: { files: string[] }) {
     }
 
     setBulkStatus(ActionState.INPROGRESS);
-    const success = await API.setBulkMetadata(metadataMap);
-    setBulkStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
-    setCSVError(success ? '' : 'An error occured while applying metadata');
+    const {
+      data: success,
+      error,
+      errorStr,
+    } = await API.setBulkMetadata(metadataMap);
+    setBulkStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Bulk application of metadata completed.'
+          : `An error occured while applying metadata: ${errorStr}.`,
+    });
   };
 
   return (
@@ -209,8 +225,8 @@ export function BulkMetadata({ files }: { files: string[] }) {
     >
       <h6 className="text-xl font-semibold mb-2">Bulk Metadata CSV Upload</h6>
       <p className="text-sm text-muted-foreground">
-        This needs to be a CSV formatted set of data where the first row is a
-        header where the column names match the fields from the ComicInfo
+        This is expected to be a CSV formatted set of data where the first row
+        is a header where the column names match the fields from the ComicInfo
         format.{' '}
       </p>
       <p className="text-sm text-muted-foreground">
@@ -225,9 +241,6 @@ export function BulkMetadata({ files }: { files: string[] }) {
       <p className="text-sm text-muted-foreground">
         Page Metadata is not supported via this tool.
       </p>
-      {bulkStatus == ActionState.FAILED ? (
-        <p className="text-red-500">{csvError}</p>
-      ) : null}
       <Textarea
         className="flex-grow"
         value={csvString}

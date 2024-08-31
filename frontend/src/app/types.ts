@@ -25,10 +25,16 @@ export type JoinEntry = {
 export type SplitMarker = {
   startEntry: string;
   endEntry: string;
-  suffix: string;
+  filename: string;
 };
 
 type MetadataEntry<T> = T | ConflictedMetadataEntry<T> | null;
+
+export type APIResult<T> = {
+  error: boolean;
+  errorStr?: string;
+  data: T;
+};
 
 type ConflictedMetadataEntry<T> = {
   conflict: true;

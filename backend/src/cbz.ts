@@ -476,18 +476,13 @@ export class CBZ {
     this.save(blob);
   }
 
-  async split(splits: Split[]) {
+  async split(baseDir: string, splits: Split[]) {
     if (!this.zipReader) return;
     if (this.dirty) await this.reload();
 
     const entries = await this.zipReader.getEntries();
     const nonImages = [];
     const entryMap = {} as { [key: string]: Entry };
-    const ext = path.extname(this.file);
-    const basefile = path.join(
-      path.dirname(this.file),
-      path.basename(this.file, ext)
-    );
 
     for (const entry of entries) {
       if (entry.directory) {
@@ -531,7 +526,7 @@ export class CBZ {
       await writer.close();
       const blob = await blobWriter.getData();
       const data = Buffer.from(await blob.arrayBuffer());
-      fs.writeFileSync([basefile, split.suffix].join(' ') + ext, data);
+      fs.writeFileSync(path.join(baseDir, split.filename), data);
     }
   }
 

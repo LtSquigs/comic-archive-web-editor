@@ -225,7 +225,7 @@ app.post('/cbz/split', async (req, res) => {
   const cbz = new CBZ(files[0]);
   await cbz.load();
   try {
-    await cbz.split(splits);
+    await cbz.split(dir, splits);
   } finally {
     await cbz.close();
   }
@@ -379,13 +379,16 @@ app.post('/cbz/metadata/bulk', async (req, res) => {
 
 app.use(
   (
-    err: any,
+    err: Error,
     req: express.Request,
     res: express.Response,
     next: express.NextFunction
   ) => {
-    console.error(err);
-    res.status(500).json({ error: err });
+    if (res.headersSent) {
+      return next(err);
+    }
+    console.log(err);
+    res.status(500).json({ error: err.message });
   }
 );
 

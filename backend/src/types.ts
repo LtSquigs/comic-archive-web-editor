@@ -8,7 +8,7 @@ export type JoinPair = {
 };
 
 export type Split = {
-  suffix: string;
+  filename: string;
   entries: string[];
 };
 

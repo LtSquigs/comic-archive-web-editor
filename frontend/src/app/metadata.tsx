@@ -28,9 +28,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { InfoCircledIcon, UpdateIcon } from '@radix-ui/react-icons';
-import { Badge } from '@/components/ui/badge';
 import { API } from './api';
 import CoverSelector from './coverSelector';
+import { useToast } from '@/hooks/use-toast';
 
 type fieldComponents = {
   [Property in keyof Metadata]: {
@@ -194,6 +194,7 @@ export function MetadataEditor({
 }) {
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
   const [currentMetadata, setCurrentMetadata] = useState<Metadata>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     const noPages = { ...metadata };
@@ -217,8 +218,21 @@ export function MetadataEditor({
     });
 
     setMetadataStatus(ActionState.INPROGRESS);
-    const success = await API.setMetadata(currentMetadata);
-    setMetadataStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    const {
+      data: success,
+      error,
+      errorStr,
+    } = await API.setMetadata(currentMetadata);
+    setMetadataStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Saving metadata completed.'
+          : `Error occured while saving metadata: ${errorStr}.`,
+    });
   };
 
   const renderField = (name: metadataKey | '', span: number = 1) => {
@@ -475,9 +489,6 @@ export function MetadataEditor({
               <UpdateIcon className="mr-1 animate-spin" />
             ) : null}{' '}
             Save Metadata
-            {metadataStatus === ActionState.FAILED ? (
-              <Badge variant={'destructive'}>Saving Metadata Failed</Badge>
-            ) : null}
           </Button>
         </div>
       </div>

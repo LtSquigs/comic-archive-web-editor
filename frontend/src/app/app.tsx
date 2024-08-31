@@ -18,6 +18,7 @@ import ArchiveSplitter from './archiveSplitter';
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
 import BulkMetadata from './bulkMetadata';
+import { useToast } from '@/hooks/use-toast';
 
 export function App() {
   const [files, setFiles] = useState<FileTree>({});
@@ -27,6 +28,7 @@ export function App() {
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [selectedTab, setSelectedTab] = useState('metadata');
   const [loading, setLoading] = useState(ActionState.NONE);
+  const { toast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -50,10 +52,34 @@ export function App() {
     (async () => {
       setLoading(ActionState.INPROGRESS);
 
-      const entries = await API.getEntries();
-      setEntries(entries);
-      const metadata = await API.getMetadata();
-      setMetadata(metadata);
+      let {
+        data,
+        error,
+        errorStr,
+      }: { data: any; error: boolean; errorStr?: string } =
+        await API.getEntries();
+      if (error) {
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `Unable to load entries. Recieved Error ${errorStr}`,
+        });
+        setLoading(ActionState.NONE);
+        return;
+      }
+      setEntries(data);
+
+      ({ data, error, errorStr } = await API.getMetadata());
+      if (error) {
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `Unable to load metadata. Recieved Error ${errorStr}`,
+        });
+        setLoading(ActionState.NONE);
+        return;
+      }
+      setMetadata(data);
 
       setLoading(ActionState.NONE);
     })();
@@ -68,7 +94,14 @@ export function App() {
   };
 
   const refreshEntries = async () => {
-    const entries = await API.getEntries();
+    const { data: entries, error, errorStr } = await API.getEntries();
+    if (error) {
+      toast({
+        title: 'Task Failed',
+        variant: 'destructive',
+        description: `Unable to refresh entries. Recieved Error ${errorStr}`,
+      });
+    }
     setEntries(entries);
   };
 
@@ -79,8 +112,18 @@ export function App() {
 
   const onDelete = async () => {
     setDeleteStatus(ActionState.INPROGRESS);
-    const success = await API.delete();
-    setDeleteStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    const { data: success, error, errorStr } = await API.delete();
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Deleting archive completed.'
+          : `Error occured while deleting archive: ${errorStr}.`,
+    });
+
+    setDeleteStatus(ActionState.NONE);
     await refreshFiles();
   };
 
@@ -130,7 +173,7 @@ export function App() {
                       style={{ height: 'calc(100vh - 40px - 2.5rem)' }}
                     >
                       <MetadataEditor
-                        entries={entries.filter(
+                        entries={(entries || []).filter(
                           (entry) => entry.isImage && !entry.isCover
                         )}
                         metadata={metadata}
@@ -158,7 +201,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <PageMetadata
-                      entries={entries.filter(
+                      entries={(entries || []).filter(
                         (entry) => entry.isImage && !entry.isCover
                       )}
                       file={selectedFiles[0]}
@@ -171,7 +214,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <JoinPages
-                      entries={entries.filter(
+                      entries={(entries || []).filter(
                         (entry) => entry.isImage && !entry.isCover
                       )}
                       file={selectedFiles[0]}
@@ -183,7 +226,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <ArchiveSplitter
-                      entries={entries.filter(
+                      entries={(entries || []).filter(
                         (entry) => entry.isImage && !entry.isCover
                       )}
                       file={selectedFiles[0]}

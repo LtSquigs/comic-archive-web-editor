@@ -4,10 +4,18 @@ import { ActionState, Entry, JoinEntry } from './types';
 import { Button } from '@/components/ui/button';
 import { Link1Icon } from '@radix-ui/react-icons';
 import { LinkBreak1Icon } from '@radix-ui/react-icons';
-import { Badge } from '@/components/ui/badge';
 import { UpdateIcon } from '@radix-ui/react-icons';
 import ImageList from './imageList';
 import { API } from './api';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 export function JoinPages({
   entries,
@@ -18,9 +26,11 @@ export function JoinPages({
 }) {
   const [joinStatus, setJoinStatus] = useState(ActionState.NONE);
   const [numToJoin, setNumToJoin] = useState(0);
+  const [pageDirection, setPageDirection] = useState('RTL');
   const [joinedImages, setJoinedImages] = useState(
     {} as { [key: string]: boolean }
   );
+  const { toast } = useToast();
   const joinList = useRef([] as JoinEntry[]);
   useEffect(() => {
     setJoinStatus(ActionState.NONE);
@@ -66,10 +76,23 @@ export function JoinPages({
   const joinImages = async () => {
     if (joinList.current.length >= 1) {
       setJoinStatus(ActionState.INPROGRESS);
-      const success = await API.joinImages(joinList.current);
-      setJoinStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+      const {
+        data: success,
+        error,
+        errorStr,
+      } = await API.joinImages(joinList.current);
+      setJoinStatus(ActionState.NONE);
+      toast({
+        title: success && !error ? 'Task Finished' : 'Task Failed',
+        variant: success && !error ? 'default' : 'destructive',
+        description:
+          success && !error
+            ? 'Joining images completed.'
+            : `Error occured while joining images: ${errorStr}.`,
+      });
     }
     joinList.current = [];
+    setJoinedImages({});
     setNumToJoin(0);
   };
 
@@ -84,7 +107,11 @@ export function JoinPages({
     return (
       <div
         className="absolute"
-        style={{ left: '-12px', top: 'calc(50% - 12px)' }}
+        style={
+          pageDirection === 'LTR'
+            ? { right: '-12px', top: 'calc(50% - 12px)' }
+            : { left: '-12px', top: 'calc(50% - 12px)' }
+        }
       >
         <Button
           className="pl-1 pr-1 pt-2 pb-2 h-6"
@@ -121,6 +148,40 @@ export function JoinPages({
       controls={() => {
         return (
           <div className="flex flex-col justify-center ml-4 gap-4">
+            <p className="text-xs text-muted-foreground max-w-[200px]">
+              Instructions:
+              <ol className="list-decimal list-inside">
+                <li className="mt-2">
+                  Use left and right arrow keys to navigate images.
+                </li>
+                <li className="mt-2">
+                  Select images to join using the link buttons between images.
+                </li>
+                <li className="mt-2">
+                  Click the join button below to join all of the selected
+                  images.
+                </li>
+              </ol>
+            </p>
+            <div>
+              <Label>Page Order Direction</Label>
+              <Select
+                value={pageDirection}
+                onValueChange={(value) => setPageDirection(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={'Reading Direction'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={'RTL'}>
+                    <i>Right To Left</i>
+                  </SelectItem>
+                  <SelectItem value={'LTR'}>
+                    <i>Left To Right</i>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               disabled={joinStatus === ActionState.INPROGRESS}
               onClick={() => {
@@ -132,14 +193,12 @@ export function JoinPages({
               ) : null}{' '}
               Combine {numToJoin} Selected Images
             </Button>
-            {joinStatus === ActionState.FAILED ? (
-              <Badge variant={'destructive'}>Joining Images Failed</Badge>
-            ) : null}
           </div>
         );
       }}
       imageControls={renderImageControls}
       multipleImages
+      leftToRight={pageDirection === 'LTR'}
     ></ImageList>
   );
 }

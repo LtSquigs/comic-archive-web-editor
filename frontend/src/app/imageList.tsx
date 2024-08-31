@@ -11,18 +11,24 @@ export function ImageList({
   controls = null,
   multipleImages = false,
   imageControls = null,
+  leftToRight = false,
 }: {
   entries: Entry[];
   file: string;
   controls?: ((index: number) => ReactElement | null) | null;
   multipleImages?: boolean;
   imageControls?: ((index: number) => ReactElement | null) | null;
+  leftToRight?: boolean;
 }) {
   const [currentEntry, setCurrentEntry] = useState(null as Entry | null);
   const [currentEntryIdx, setCurrentEntryIdx] = useState(0);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
+      if (['INPUT', 'BUTTON'].includes((event.target as any).tagName)) {
+        return;
+      }
+      console.log(event.target);
       const increment = event.shiftKey ? 2 : 1;
       if (event.key === 'ArrowRight') {
         if (currentEntryIdx + increment < entries.length) {
@@ -74,7 +80,9 @@ export function ImageList({
     <div style={{ height: 'calc(100vh - 40px - 2.5rem)' }}>
       <div style={{ height: 'calc(100% - 68px - 2rem)' }}>
         <div className="flex h-full relative">
-          {multipleImages && currentEntryIdx + 1 < entries.length ? (
+          {!leftToRight &&
+          multipleImages &&
+          currentEntryIdx + 1 < entries.length ? (
             <div className="max-h-full h-full flex flex-col justify-center">
               <img
                 className="max-h-full max-w-full"
@@ -91,6 +99,18 @@ export function ImageList({
             />
             {imageControls ? imageControls(currentEntryIdx) : null}
           </div>
+          {leftToRight &&
+          multipleImages &&
+          currentEntryIdx + 1 < entries.length ? (
+            <div className="max-h-full h-full flex flex-col justify-center">
+              <img
+                className="max-h-full max-w-full"
+                src={`/cbz/image?files=${file}&entry=${
+                  entries[currentEntryIdx + 1].entryName
+                }`}
+              />
+            </div>
+          ) : null}
           {controls ? controls(currentEntryIdx) : null}
         </div>
       </div>

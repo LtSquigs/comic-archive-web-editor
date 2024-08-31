@@ -8,6 +8,7 @@ import {
   UpdateIcon,
 } from '@radix-ui/react-icons';
 import { API } from './api';
+import { useToast } from '@/hooks/use-toast';
 
 export function CoverSelector({
   files = [],
@@ -20,6 +21,7 @@ export function CoverSelector({
   const [editing, setEditing] = useState(false);
   const [coverIdx, setCoverIdx] = useState(0);
   const [coverStatus, setCoverStatus] = useState(ActionState.NONE);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (files.length > 1) {
@@ -39,8 +41,21 @@ export function CoverSelector({
 
   const setCover = async () => {
     setCoverStatus(ActionState.INPROGRESS);
-    const success = await API.setCover(entries[coverIdx]);
-    setCoverStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    const {
+      data: success,
+      error,
+      errorStr,
+    } = await API.setCover(entries[coverIdx]);
+    setCoverStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Setting cover completed.'
+          : `Error occured while setting cover: ${error}.`,
+    });
 
     setEditing(false);
     setCoverIdx(0);

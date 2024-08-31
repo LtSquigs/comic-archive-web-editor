@@ -15,10 +15,20 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { DoubleArrowRightIcon, UpdateIcon } from '@radix-ui/react-icons';
+import {
+  DoubleArrowRightIcon,
+  InfoCircledIcon,
+  UpdateIcon,
+} from '@radix-ui/react-icons';
 import { API } from './api';
-import { Badge } from '@/components/ui/badge';
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { TooltipPortal } from '@radix-ui/react-tooltip';
+import { useToast } from '@/hooks/use-toast';
 type EntriesProps = {
   entries: Entry[];
   onEntriesChanged: () => {};
@@ -182,6 +192,7 @@ export function EntriesEditor({
   const [replacementPatterns, setReplacementPatterns] = useState<string>(
     defaultRemovalPatterns
   );
+  const { toast } = useToast();
 
   const refresh = () => {
     setMappedEntries(
@@ -205,46 +216,97 @@ export function EntriesEditor({
       map[entries[i].entryName] = mappedEntries[i];
     }
     setRenameStatus(ActionState.INPROGRESS);
-    const success = await API.renameEntries(map);
+    const { data: success, error, errorStr } = await API.renameEntries(map);
     await onEntriesChanged();
-    setRenameStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    setRenameStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Renaming entries completed.'
+          : `Error occured while renaming entries: ${errorStr}.`,
+    });
   };
 
   const onFlattenEntries = async () => {
     setFlattenStatus(ActionState.INPROGRESS);
-    const success = await API.flattenEntries();
+    const { data: success, error, errorStr } = await API.flattenEntries();
     await onEntriesChanged();
-    setFlattenStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    setFlattenStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Flattening entries completed.'
+          : `Error occured while flattening entries: ${errorStr}.`,
+    });
   };
 
   const onRemoveExif = async () => {
     setExifStatus(ActionState.INPROGRESS);
-    const success = await API.removeExif();
+    const { data: success, error, errorStr } = await API.removeExif();
     await onEntriesChanged();
-    setExifStatus(success ? ActionState.SUCCESS : ActionState.FAILED);
+    setExifStatus(ActionState.NONE);
+
+    toast({
+      title: success && !error ? 'Task Finished' : 'Task Failed',
+      variant: success && !error ? 'default' : 'destructive',
+      description:
+        success && !error
+          ? 'Removing EXIF data completed.'
+          : `Error occured while removing EXIF data: ${errorStr}`,
+    });
   };
 
   return (
     <div className="h-fit mt-4 ml-1">
-      <div className="flex flex-col gap-2">
-        <Button onClick={onRemoveExif}>
-          {exifStatus === ActionState.INPROGRESS ? (
-            <UpdateIcon className="mr-1 animate-spin" />
-          ) : null}{' '}
-          Remove EXIF From Entries
-        </Button>
-        {exifStatus === ActionState.FAILED ? (
-          <Badge variant={'destructive'}>Removing EXIF Failed</Badge>
-        ) : null}
-        <Button onClick={onFlattenEntries}>
-          {flattenStatus === ActionState.INPROGRESS ? (
-            <UpdateIcon className="mr-1 animate-spin" />
-          ) : null}{' '}
-          Flatten Entries
-        </Button>
-        {flattenStatus === ActionState.FAILED ? (
-          <Badge variant={'destructive'}>Flattening Entries Failed</Badge>
-        ) : null}
+      <div className="flex flex-col gap-2 items-start">
+        <div className="flex">
+          <Button onClick={onRemoveExif}>
+            {exifStatus === ActionState.INPROGRESS ? (
+              <UpdateIcon className="mr-1 animate-spin" />
+            ) : null}{' '}
+            Remove EXIF From Entries
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger className="flex items-start">
+                <InfoCircledIcon width={20} height={20} className="ml-2" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  Removes all EXIF and EXIF-like data from images within the
+                  archives.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div className="flex">
+          <Button onClick={onFlattenEntries}>
+            {flattenStatus === ActionState.INPROGRESS ? (
+              <UpdateIcon className="mr-1 animate-spin" />
+            ) : null}{' '}
+            Flatten Entries
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger className="flex items-start">
+                <InfoCircledIcon width={20} height={20} className="ml-2" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  Flattens the files in the archive to remove directories. Will
+                  error if there are duplicate names.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
       {entries.length > 0 ? (
         <>
@@ -259,6 +321,22 @@ export function EntriesEditor({
                   }}
                 />
                 <Label>Strip Whitespace</Label>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-start">
+                      <InfoCircledIcon />
+                    </TooltipTrigger>
+                    <TooltipPortal>
+                      <TooltipContent>
+                        <p>
+                          Strips any whitespace from the start/end of the
+                          filenames.
+                        </p>
+                      </TooltipContent>
+                    </TooltipPortal>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
@@ -268,9 +346,51 @@ export function EntriesEditor({
                   }}
                 />
                 <Label>Normalize Numbers</Label>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-start">
+                      <InfoCircledIcon />
+                    </TooltipTrigger>
+                    <TooltipPortal>
+                      <TooltipContent>
+                        <p>
+                          Attempts to normalize the padding on numbers to the
+                          largest number.
+                        </p>
+                        <p>
+                          e.g. if the largest number is 357. then 1 -{'>'} 001,
+                          02 -{'>'} 002
+                        </p>
+                      </TooltipContent>
+                    </TooltipPortal>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <div>
-                <Label>Replacement Regex</Label>
+                <div className="flex">
+                  <Label>Replacement Regex</Label>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger className="flex items-start ml-2">
+                        <InfoCircledIcon />
+                      </TooltipTrigger>
+                      <TooltipPortal>
+                        <TooltipContent>
+                          <p>
+                            Regexs to apply to the entries to rename them. Uses
+                            Standard JS regex format.
+                          </p>
+                          <p>
+                            If a rule result in a filename becoming an empty
+                            string, that file will be deleted from the archive.
+                          </p>
+                        </TooltipContent>
+                      </TooltipPortal>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Textarea
                   onChange={(event) => {
                     setReplacementPatterns(event.target.value);
@@ -287,9 +407,6 @@ export function EntriesEditor({
                   ) : null}{' '}
                   Rename Entries
                 </Button>
-                {renameStatus === ActionState.FAILED ? (
-                  <Badge variant={'destructive'}>Renaming Entries Failed</Badge>
-                ) : null}
               </div>
             </div>
             <div className="flex ml-4">

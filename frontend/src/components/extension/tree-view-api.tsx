@@ -116,7 +116,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
                         inBlock = !inBlock;
                       }
 
-                      if (prev?.includes(entry)) {
+                      if (prev?.includes(entry) || groupIds.includes(entry)) {
                         continue;
                       }
 
