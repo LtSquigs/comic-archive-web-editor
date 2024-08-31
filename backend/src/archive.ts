@@ -52,7 +52,7 @@ export class Archive {
 
   constructor(filename: string) {
     this.file = filename;
-    this.reader = this.getReader();
+    this.reader = null;
     this.dirty = false;
   }
 
