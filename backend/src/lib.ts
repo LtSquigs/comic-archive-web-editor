@@ -6,7 +6,7 @@ import fs from 'fs';
 
 export const SERVER_HOST = process.env.HOST ?? 'localhost';
 export const SERVER_PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-export const SERVER_DIR = path.resolve(process.env.MANGA_DIR ?? '/manga');
+export const SERVER_DIR = path.resolve(process.env.ARCHIVE_DIR ?? '/archives');
 export const ALLOWED_EXTENSIONS = CBZReader.extensions;
 export const REGISTERED_READERS = [CBZReader];
 export const REGISTERED_WRITERS = [CBZWriter];

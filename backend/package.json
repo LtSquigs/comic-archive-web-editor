@@ -1,12 +1,11 @@
 {
   "name": "@comic-archive-web-editor/backend",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "license": "MIT",
   "private": true,
   "type": "module",
   "dependencies": {
     "@zip.js/zip.js": "^2.7.51",
-    "axios": "^1.6.0",
     "exif-be-gone": "^1.5.1",
     "express": "^5.0.0-beta.3",
     "glob": "^10.3.10",
