@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActionState, Entry } from './types';
+import { ActionState } from './types';
+import { Entry } from '../shared/types';
 
 import {
   Table,

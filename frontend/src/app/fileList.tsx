@@ -19,7 +19,7 @@ type FileTree = {
 };
 
 const getFileTree = async (dir: string = '') => {
-  const { data: files, error, errorStr } = await API.getCBZFiles(dir);
+  const { data: files, error, errorStr } = await API.getArchiveFiles(dir);
   const tree = files.map((file): FileTree => {
     return {
       id: file.path,
@@ -230,7 +230,7 @@ export const FileList = forwardRef(function FileList(
   return (
     <div>
       <h6 className="text-xl font-semibold mb-2 flex items-center">
-        CBZ Files{' '}
+        Archive Files{' '}
         {refreshing ? (
           <ReloadIcon className="ml-2 cursor-pointer animate-spin"></ReloadIcon>
         ) : (

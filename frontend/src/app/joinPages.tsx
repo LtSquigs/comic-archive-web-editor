@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionState, Entry, JoinEntry } from './types';
+import { ActionState } from './types';
+import { Entry, JoinPair } from '../shared/types';
 
 import { Button } from '@/components/ui/button';
 import { Link1Icon } from '@radix-ui/react-icons';
@@ -33,7 +34,7 @@ export function JoinPages({
     {} as { [key: string]: boolean }
   );
   const { toast } = useToast();
-  const joinList = useRef([] as JoinEntry[]);
+  const joinList = useRef([] as JoinPair[]);
   useEffect(() => {
     setJoinStatus(ActionState.NONE);
     joinList.current = [];

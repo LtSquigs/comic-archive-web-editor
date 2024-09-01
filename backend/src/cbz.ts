@@ -28,6 +28,7 @@ export class CBZWriter implements ArchiveWriter {
     return Buffer.from(data);
   }
 }
+
 export class CBZReader implements ArchiveReader {
   static extensions = ['.cbz', '.zip'];
   file: string;

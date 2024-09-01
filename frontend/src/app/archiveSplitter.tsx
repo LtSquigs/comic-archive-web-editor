@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActionState, Entry, SplitMarker } from './types';
+import { ActionState, SplitMarker } from './types';
+import { Entry } from '../shared/types';
 
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -37,7 +38,7 @@ export function ArchiveSplitter({
     setNewFileName(file);
     setSplitStatus(ActionState.NONE);
     setSplitMarkers([]);
-  }, [file, entries]);
+  }, [file, entries]); // TODO: Entries causes insane rerender
 
   const updateNewFileName = (newFileName: string) => {
     setNewFileName(newFileName);
@@ -74,6 +75,12 @@ export function ArchiveSplitter({
         (oldMarker || ({} as any)).filename = newMarker.filename;
 
         return newArray;
+      });
+
+      toast({
+        title: 'Split Marker Updated',
+        variant: 'default',
+        description: `Split marker ${newMarker.startEntry} updated to: ${newMarker.filename}`,
       });
       return;
     }
@@ -122,6 +129,12 @@ export function ArchiveSplitter({
 
       return calculatedArray;
     });
+
+    toast({
+      title: 'Split Marker Added',
+      variant: 'default',
+      description: `Split marker added ${newMarker.startEntry}: ${newMarker.filename}`,
+    });
   };
 
   const removeMarker = (entry: string) => {
@@ -160,6 +173,12 @@ export function ArchiveSplitter({
       }
 
       return calculatedArray;
+    });
+
+    toast({
+      title: 'Split Marker Removed',
+      variant: 'default',
+      description: `Split marker removed ${entry}`,
     });
   };
 

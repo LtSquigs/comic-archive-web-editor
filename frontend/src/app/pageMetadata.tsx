@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActionState, Entry, Metadata, Page } from './types';
+import { ActionState } from './types';
+import { Entry, APIMetadata, APIPage, Metadata } from '../shared/types';
 
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,7 +20,7 @@ function PageMetadataEditor({
   onChangeField,
 }: {
   pageNumber: number;
-  pageMetadata: Page;
+  pageMetadata: APIPage;
   onChangeField: (
     field: 'type' | 'doublePage' | 'bookmark' | 'key',
     value: any
@@ -112,16 +113,20 @@ export function PageMetadata({
 }: {
   entries: Entry[];
   file: string;
-  metadata: Metadata;
+  metadata: APIMetadata;
 }) {
   const [metadataDirty, setMetadataDirty] = useState(false);
-  const [currentMetadata, setCurrentMetadata] = useState<Metadata>({});
+  const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
   const { toast } = useToast();
 
-  const onUpdateMetadata = async (metadata: Metadata) => {
+  const onUpdateMetadata = async (metadata: APIMetadata) => {
     setMetadataStatus(ActionState.INPROGRESS);
-    const { data: success, error, errorStr } = await API.setMetadata(metadata);
+    const {
+      data: success,
+      error,
+      errorStr,
+    } = await API.setMetadata(metadata as Metadata);
     setMetadataStatus(ActionState.NONE);
     toast({
       title: success && !error ? 'Task Finished' : 'Task Failed',

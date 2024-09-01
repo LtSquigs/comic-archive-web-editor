@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
+import { ActionState } from './types';
+
 import {
-  ActionState,
   AgeRating,
   BlackAndWhite,
   Entry,
   Manga,
   Metadata,
-  metadataKey,
-} from './types';
+  APIMetadata,
+} from '../shared/types';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +34,7 @@ import CoverSelector from './coverSelector';
 import { useToast } from '@/hooks/use-toast';
 
 type fieldComponents = {
-  [Property in keyof Metadata]: {
+  [Property in keyof Metadata]?: {
     type?: 'select' | 'number';
     help?: string;
     multiline?: boolean;
@@ -188,12 +189,12 @@ export function MetadataEditor({
   files = [],
   entries = [],
 }: {
-  metadata: Metadata;
+  metadata: APIMetadata;
   files: string[];
   entries: Entry[];
 }) {
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
-  const [currentMetadata, setCurrentMetadata] = useState<Metadata>({});
+  const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -207,14 +208,14 @@ export function MetadataEditor({
     const toDelete = [];
 
     for (let key in currentMetadata) {
-      const obj = currentMetadata[key as metadataKey];
-      if (obj && typeof obj === 'object' && obj.conflict) {
+      const obj = currentMetadata[key as keyof APIMetadata];
+      if (obj && typeof obj === 'object' && 'conflict' in obj) {
         toDelete.push(key);
       }
     }
 
     toDelete.forEach((key) => {
-      delete currentMetadata[key as metadataKey];
+      delete currentMetadata[key as keyof APIMetadata];
     });
 
     setMetadataStatus(ActionState.INPROGRESS);
@@ -222,7 +223,7 @@ export function MetadataEditor({
       data: success,
       error,
       errorStr,
-    } = await API.setMetadata(currentMetadata);
+    } = await API.setMetadata(currentMetadata as Metadata);
     setMetadataStatus(ActionState.NONE);
 
     toast({
@@ -235,7 +236,7 @@ export function MetadataEditor({
     });
   };
 
-  const renderField = (name: metadataKey | '', span: number = 1) => {
+  const renderField = (name: keyof APIMetadata | '', span: number = 1) => {
     // comment for tailwind, col-span-1 col-span-2 col-span-3
     // col-span-4 col-span-5 col-span-10 col-span-11 col-span-12
     const className = `h-fit col-span-${span}`;
@@ -251,7 +252,9 @@ export function MetadataEditor({
 
     let value = currentMetadata[name];
     const isConflicted =
-      value && typeof value === 'object' ? value.conflict : false;
+      value && typeof value === 'object' && 'conflict' in value
+        ? value.conflict
+        : false;
 
     if (isConflicted) {
       value = null;
@@ -263,24 +266,24 @@ export function MetadataEditor({
 
         if (field.type === 'select') {
           if (value === 'REMOVE') {
-            cloned[name] = null;
+            (cloned as any)[name] = null;
           } else {
             cloned[name] = value;
           }
         } else if (field.type === 'number') {
           if (value === '' || value === undefined || value === null) {
-            cloned[name] = null;
+            (cloned as any)[name] = null;
           } else {
             const num = parseInt(value, 10);
             if (isNaN(num)) {
-              cloned[name] = null;
+              (cloned as any)[name] = null;
             } else {
               cloned[name] = value;
             }
           }
         } else {
           if (value === '' || value === undefined || value === null) {
-            cloned[name] = null;
+            (cloned as any)[name] = null;
           } else {
             cloned[name] = value;
           }

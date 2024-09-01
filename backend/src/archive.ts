@@ -1,48 +1,24 @@
 import { posix as path } from 'path';
 import { ComicInfo } from './metadata.js';
-import {
-  ArchiveEntry,
-  ArchiveReader,
-  ArchiveWriter,
-  JoinPair,
-  Map,
-  Split,
-} from './types.js';
+import { ArchiveEntry, ArchiveReader, ArchiveWriter } from './types.js';
 import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
-import ExifTransformer from 'exif-be-gone';
-import { Readable } from 'stream';
-import { CBZReader, CBZWriter } from './cbz.js';
+import {
+  REGISTERED_READERS,
+  REGISTERED_WRITERS,
+  removeExif,
+  SERVER_DIR,
+} from './lib.js';
+import { Entry, EntryMap, JoinPair, Split } from './shared/types.js';
 
-// Simple previous file cache, since the main use case of this server is
-// single use read for a single CBZ file, this is intended to let us cache
-// between calls if necessary
+// Very basic cache that just keeps the last opened CBZ read in memory
+// between requests. The usual use case is to get many requests for the
+// same file in sequence, optimizes for this. (Caching only applies to reader).
 const fileCache = {
   filename: '',
   mtime: -1,
   reader: null as ArchiveReader | null,
-};
-
-const removeExif = (buf: Buffer): Promise<Buffer> => {
-  return new Promise(async (resolve, reject) => {
-    const transformer = new (ExifTransformer as any)();
-    const readable = Readable.from(buf);
-    const chunks: any[] = [];
-
-    readable.pipe(transformer);
-    transformer.on('data', (chunk: any) => {
-      chunks.push(chunk);
-    });
-
-    transformer.on('end', async () => {
-      resolve(Buffer.concat(chunks));
-    });
-
-    transformer.on('error', (err: any) => {
-      reject(err);
-    });
-  });
 };
 
 export class Archive {
@@ -57,7 +33,7 @@ export class Archive {
   }
 
   getReader(): ArchiveReader {
-    const readers = [CBZReader];
+    const readers = REGISTERED_READERS;
     const ext = path.extname(this.file);
 
     for (let reader of readers) {
@@ -66,11 +42,11 @@ export class Archive {
       }
     }
 
-    throw new Error(`UNSUPPORTED FILE FORMAT ${ext}`);
+    throw new Error(`UNSUPPORTED FILE FORMAT ${ext}.`);
   }
 
   getWriter(): ArchiveWriter {
-    const writers = [CBZWriter];
+    const writers = REGISTERED_WRITERS;
     const ext = path.extname(this.file);
 
     for (let writer of writers) {
@@ -82,6 +58,8 @@ export class Archive {
     throw new Error(`UNSUPPORTED FILE FORMAT ${ext}`);
   }
 
+  // Loads the archive from disk or from cache if mtime has not changed
+  // will handle closing the last archive if it is still open in memory.
   async load() {
     const stats = fs.statSync(this.file);
     if (
@@ -109,7 +87,8 @@ export class Archive {
     if (!this.reader) return;
   }
 
-  async entries() {
+  // Retrives a list of all entries in the archive
+  async entries(): Promise<Entry[]> {
     if (!this.reader) return [];
     if (this.dirty) await this.reload();
 
@@ -123,6 +102,7 @@ export class Archive {
       if (mimeType && mimeType.startsWith('image/')) {
         isImage = true;
       }
+
       entries.push({
         entryName: entry.filename,
         baseName: baseName,
@@ -146,7 +126,8 @@ export class Archive {
     });
   }
 
-  async flatten() {
+  // Flattens every entry in the archive to remove directories
+  async flatten(): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -164,8 +145,9 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  private async getMetadataEntry() {
-    if (!this.reader) return null;
+  // Retrives the metadata object contained in an archive
+  async getMetadata(): Promise<ComicInfo> {
+    if (!this.reader) return new ComicInfo();
     if (this.dirty) await this.reload();
 
     const nameRegex = new RegExp(`^ComicInfo\.xml$`, 'i');
@@ -173,28 +155,17 @@ export class Archive {
       const name = entry.filename;
 
       if (name.match(nameRegex)) {
-        return entry;
+        const data = await entry.getData();
+        return ComicInfo.fromXML(data.toString());
       }
-    }
-
-    return null;
-  }
-
-  async getMetadata() {
-    if (!this.reader) return new ComicInfo();
-    if (this.dirty) await this.reload();
-
-    const entry = await this.getMetadataEntry();
-
-    if (entry !== null) {
-      const data = await entry.getData();
-      return ComicInfo.fromXML(data.toString());
     }
 
     return new ComicInfo();
   }
 
-  async setMetadata(metadata: any) {
+  // Saves the metadata to a ComicInfo.xml entry in the archive
+  // Overwrites existing ComicInfo.xml if it exists.
+  async setMetadata(metadata: any): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -202,7 +173,6 @@ export class Archive {
     const writer = this.getWriter();
 
     const nameRegex = new RegExp(`^ComicInfo\.xml$`, 'i');
-
     for (let entry of await this.reader.entries()) {
       if (!entry.directory && !entry.filename.match(nameRegex)) {
         await writer.add(entry.filename, await entry.getData());
@@ -214,7 +184,9 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  async renameEntries(map: Map = {}) {
+  // Renames entries in the archive according to the map given
+  // Map is expected to be a map of old entry names to new entry names
+  async renameEntries(map: EntryMap = {}): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -230,7 +202,8 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  async removeExif() {
+  // Removes EXIF data from images detected in archive
+  async removeExif(): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -251,7 +224,9 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  async getCover() {
+  // Retrieves the cover image from the archive if it exists.
+  // Otherwise it returns the first image sorted as the cover.
+  async getCover(): Promise<[Buffer | null, string | null]> {
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
 
@@ -285,7 +260,9 @@ export class Archive {
     return [await cover.getData(), (mime as any).getType(cover.filename)];
   }
 
-  async setCover(coverFileName: string) {
+  // Copies the entry indicated by coverFileName to the the cover file
+  // called cover.<jpg, png, webp, etc>
+  async setCover(coverFileName: string): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -317,7 +294,10 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  async getImageByName(targetEntry: string) {
+  // Retrieves the image data of an entry file by name
+  async getImageByName(
+    targetEntry: string
+  ): Promise<[Buffer | null, string | null]> {
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
 
@@ -344,7 +324,9 @@ export class Archive {
     ];
   }
 
-  async combineImages(imagePairs: JoinPair[]) {
+  // Combines images together in archive by the JoinPair's provided
+  // Removes original images after join.
+  async combineImages(imagePairs: JoinPair[]): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -354,8 +336,8 @@ export class Archive {
     const rightToLeft = {} as any;
 
     for (let pair of imagePairs) {
-      const leftExt = path.extname(pair.leftImage);
-      const rightExt = path.extname(pair.rightImage);
+      const leftExt = path.extname(pair.leftImage).toLowerCase();
+      const rightExt = path.extname(pair.rightImage).toLowerCase();
       if (leftExt !== rightExt) {
         continue;
       }
@@ -395,8 +377,8 @@ export class Archive {
 
     for (let key in pairMap) {
       const pairData = pairMap[key];
-      const leftExt = path.extname(pairData.leftName);
-      const rightExt = path.extname(pairData.rightName);
+      const leftExt = path.extname(pairData.leftName).toLowerCase();
+      const rightExt = path.extname(pairData.rightName).toLowerCase();
 
       if (pairData.leftImage === null && pairData.rightImage !== null) {
         await writer.add(pairData.rightName, pairData.rightImage);
@@ -434,7 +416,11 @@ export class Archive {
     this.save(await writer.write());
   }
 
-  async split(baseDir: string, splits: Split[]) {
+  // Splits an archive into multiple different archives based off
+  // of the Split objects sent to the function. Only image files
+  // are split among the archives, non image files are saved in
+  // the first archive created and not others.
+  async split(splits: Split[]): Promise<void> {
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -476,11 +462,12 @@ export class Archive {
       firstSplit = false;
 
       const data = await writer.write();
-      fs.writeFileSync(path.join(baseDir, split.filename), data);
+      fs.writeFileSync(path.join(SERVER_DIR, split.filename), data);
     }
   }
 
-  async reload() {
+  // Reloads the CBZ file in memory from disk and clears dirty flag
+  async reload(): Promise<void> {
     if (!this.reader) return;
 
     await this.reader.close();
@@ -494,7 +481,8 @@ export class Archive {
     this.dirty = false;
   }
 
-  async save(data: Buffer) {
+  // Saves file to disk and marks data as dirty for future reads
+  async save(data: Buffer): Promise<void> {
     fs.writeFileSync(this.file, data);
     this.dirty = true;
   }

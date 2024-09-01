@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActionState, Entry } from './types';
+import { ActionState } from './types';
+import { Entry } from '../shared/types';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +68,7 @@ export function CoverSelector({
     return (
       <div className="relative">
         <img
-          src={`/cbz/image?files=${files[0]}&entry=${currentEntry.entryName}`}
+          src={`/archive/image?files=${files[0]}&entry=${currentEntry.entryName}`}
           className="max-w-full max-h-full"
         />
         {coverIdx - 1 >= 0 ? (

@@ -1,5 +1,11 @@
 import convert from 'xml-js-graphite';
-import { AgeRating, BlackAndWhite, Manga, Map } from './types.js';
+import {
+  AgeRating,
+  BlackAndWhite,
+  Manga,
+  Metadata as MetadataType,
+  Page as PageType,
+} from './shared/types.js';
 
 const find = (xmlEle: any, name: string): any => {
   return ((xmlEle || {}).elements || []).find((ele: any) => {
@@ -16,7 +22,7 @@ const text = (xmlEle: any): any => {
   return textEle?.text;
 };
 
-export class Page {
+export class Page implements PageType {
   image: number | null = null;
   type: string | null = null;
   doublePage: boolean | null = null;
@@ -35,7 +41,7 @@ export class Page {
 
       const value = attributes[upperName];
       if (value !== undefined) {
-        (p as Map)[property] = value;
+        (p as any)[property] = value;
       }
     }
 
@@ -43,7 +49,7 @@ export class Page {
   }
 
   toXJS(): any {
-    const attributes: Map = {};
+    const attributes: any = {};
 
     for (const property in this) {
       const value = this[property];
@@ -72,20 +78,16 @@ export class Page {
         continue;
       }
 
-      (p as Map)[property] = obj[property];
+      (p as any)[property] = obj[property];
     }
 
     return p;
   }
 
-  copyOut(): any {
-    const obj: Map = {};
+  copyOut(): PageType {
+    const obj: any = {};
     for (const property in this) {
       const value = this[property];
-
-      // if (value === null) {
-      //   continue;
-      // }
 
       obj[property as string] = value;
     }
@@ -94,7 +96,7 @@ export class Page {
   }
 }
 
-export class ComicInfo implements Map {
+export class ComicInfo implements MetadataType {
   title: string | null = null;
   series: string | null = null;
   localizedSeries: string | null = null;
@@ -163,7 +165,7 @@ export class ComicInfo implements Map {
       }
       const value = text(find(topEle, property));
       if (value !== undefined) {
-        (ci as Map)[property] = value;
+        (ci as any)[property] = value;
       }
     }
 
@@ -243,14 +245,14 @@ export class ComicInfo implements Map {
 
         continue;
       }
-      (ci as Map)[property] = obj[property];
+      (ci as any)[property] = obj[property];
     }
 
     return ci;
   }
 
-  copyOut(exclude: string[] = []): any {
-    const obj: Map = {};
+  copyOut(exclude: string[] = []): MetadataType {
+    const obj: any = {};
     for (const property in this) {
       const value = this[property];
 

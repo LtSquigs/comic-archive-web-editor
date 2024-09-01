@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActionState, Metadata, metadataKey } from './types';
+import { ActionState } from './types';
+import { Metadata, MetadataMap } from '../shared/types';
 
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
@@ -158,7 +159,7 @@ export function BulkMetadata({ files }: { files: string[] }) {
       a.localeCompare(b, undefined, { numeric: true })
     );
 
-    const metadataMap = {} as { [key: string]: Metadata };
+    const metadataMap: MetadataMap = {};
     for (let i = 0; i < data.length; i++) {
       const parsed = data[i];
       const file = orderedFiles[i];
@@ -166,15 +167,15 @@ export function BulkMetadata({ files }: { files: string[] }) {
       for (let key in parsed) {
         const mappedKey = fieldMap[key];
         if (key !== mappedKey) {
-          (parsed as any)[mappedKey] = parsed[key as metadataKey];
-          delete parsed[key as metadataKey];
+          (parsed as any)[mappedKey] = parsed[key as keyof Metadata];
+          delete parsed[key as keyof Metadata];
         }
         if (
-          parsed[mappedKey as metadataKey] === '' ||
-          parsed[mappedKey as metadataKey] === undefined ||
-          parsed[mappedKey as metadataKey] === null
+          parsed[mappedKey as keyof Metadata] === '' ||
+          parsed[mappedKey as keyof Metadata] === undefined ||
+          parsed[mappedKey as keyof Metadata] === null
         ) {
-          parsed[mappedKey as metadataKey] = null;
+          (parsed as any)[mappedKey] = null;
         }
       }
 

@@ -1,5 +1,5 @@
 import { ReactElement, useEffect, useRef, useState } from 'react';
-import { Entry } from './types';
+import { Entry } from '../shared/types';
 
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -103,7 +103,7 @@ export function ImageList({
             <div className="max-h-full h-full flex flex-col justify-center">
               <img
                 className="max-h-full max-w-full"
-                src={`/cbz/image?files=${file}&entry=${
+                src={`/archive/image?files=${file}&entry=${
                   entries[currentEntryIdx + 1].entryName
                 }`}
               />
@@ -112,7 +112,7 @@ export function ImageList({
           <div className="max-h-full h-full flex flex-col justify-center relative">
             <img
               className="max-h-full max-w-full"
-              src={`/cbz/image?files=${file}&entry=${currentEntry.entryName}`}
+              src={`/archive/image?files=${file}&entry=${currentEntry.entryName}`}
             />
             {imageControls ? imageControls(currentEntryIdx) : null}
           </div>
@@ -122,7 +122,7 @@ export function ImageList({
             <div className="max-h-full h-full flex flex-col justify-center">
               <img
                 className="max-h-full max-w-full"
-                src={`/cbz/image?files=${file}&entry=${
+                src={`/archive/image?files=${file}&entry=${
                   entries[currentEntryIdx + 1].entryName
                 }`}
               />

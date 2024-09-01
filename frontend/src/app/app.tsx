@@ -3,7 +3,8 @@ import { API } from './api';
 import FileList from './fileList';
 import MetadataEditor from './metadata';
 import EntriesEditor from './entries';
-import { Entry, Metadata, ActionState, FileEntry, SplitMarker } from './types';
+import { ActionState, SplitMarker } from './types';
+import { Entry, APIMetadata } from '../shared/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResizableHandle,
@@ -22,8 +23,9 @@ import { useToast } from '@/hooks/use-toast';
 
 export function App() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [metadata, setMetadata] = useState<Metadata>({});
+  const [metadata, setMetadata] = useState<APIMetadata>({});
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [imageEntries, setImageEntiries] = useState<Entry[]>([]);
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [selectedTab, setSelectedTab] = useState('metadata');
   const [loading, setLoading] = useState(ActionState.NONE);
@@ -38,15 +40,16 @@ export function App() {
   }, [selectedFiles]);
 
   useEffect(() => {
+    setImageEntiries(
+      (entries || []).filter((entry) => entry.isImage && !entry.isCover)
+    );
+  }, [entries]);
+
+  useEffect(() => {
     (async () => {
       setLoading(ActionState.INPROGRESS);
 
-      let {
-        data,
-        error,
-        errorStr,
-      }: { data: any; error: boolean; errorStr?: string } =
-        await API.getEntries();
+      const { data, error, errorStr } = await API.getEntries();
       if (error) {
         toast({
           title: 'Task Failed',
@@ -58,17 +61,21 @@ export function App() {
       }
       setEntries(data);
 
-      ({ data, error, errorStr } = await API.getMetadata());
-      if (error) {
+      const {
+        data: mData,
+        error: mError,
+        errorStr: mErrorStr,
+      } = await API.getMetadata();
+      if (mError) {
         toast({
           title: 'Task Failed',
           variant: 'destructive',
-          description: `Unable to load metadata. Recieved Error ${errorStr}`,
+          description: `Unable to load metadata. Recieved Error ${mErrorStr}`,
         });
         setLoading(ActionState.NONE);
         return;
       }
-      setMetadata(data);
+      setMetadata(mData);
 
       setLoading(ActionState.NONE);
     })();
@@ -198,9 +205,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <PageMetadata
-                      entries={(entries || []).filter(
-                        (entry) => entry.isImage && !entry.isCover
-                      )}
+                      entries={imageEntries}
                       file={selectedFiles[0]}
                       metadata={metadata}
                     />
@@ -211,9 +216,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <JoinPages
-                      entries={(entries || []).filter(
-                        (entry) => entry.isImage && !entry.isCover
-                      )}
+                      entries={imageEntries}
                       file={selectedFiles[0]}
                       onJoin={refreshEntries}
                     />
@@ -224,9 +227,7 @@ export function App() {
                     <Skeleton className="w-[400px] h-[30px]" />
                   ) : (
                     <ArchiveSplitter
-                      entries={(entries || []).filter(
-                        (entry) => entry.isImage && !entry.isCover
-                      )}
+                      entries={imageEntries}
                       file={selectedFiles[0]}
                       onSplit={async (splits: SplitMarker[]) => {
                         await refreshFiles(splits[0].filename);

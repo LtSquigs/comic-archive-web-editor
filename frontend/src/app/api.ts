@@ -1,12 +1,13 @@
+import { FileEntry, SplitMarker, APIResult } from './types';
+
 import {
-  //FileTree,
-  FileEntry,
   Entry,
+  APIMetadata,
   Metadata,
-  JoinEntry,
-  SplitMarker,
-  APIResult,
-} from './types';
+  MetadataMap,
+  JoinPair,
+  EntryMap,
+} from '../shared/types';
 
 let abortController: AbortController | null = null;
 export const abortableRequest = async (
@@ -39,6 +40,7 @@ const fileParam = (files: string[] = []) => {
 
   return params.toString();
 };
+
 export class API {
   static files: string[] = [];
 
@@ -46,13 +48,13 @@ export class API {
     API.files = files;
   }
 
-  static async getCBZFiles(
+  static async getArchiveFiles(
     subdir: string = ''
   ): Promise<APIResult<FileEntry[]>> {
     const params = new URLSearchParams();
     params.append('prefix', subdir);
 
-    const resp = await fetch(`/cbz/list?${params.toString()}`);
+    const resp = await fetch(`/archive/list?${params.toString()}`);
     const body = await resp.json();
 
     if (body.error) {
@@ -68,7 +70,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<Entry[]>> => {
-      const resp = await fetch(`/cbz/entries?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/entries?${fileParam(API.files)}`, {
         signal,
       });
       const body = await resp.json();
@@ -81,15 +83,13 @@ export class API {
     });
   }
 
-  static async renameEntries(map: {
-    [key: string]: string;
-  }): Promise<APIResult<boolean>> {
+  static async renameEntries(map: EntryMap): Promise<APIResult<boolean>> {
     if (API.files.length !== 1) {
       return { data: true, error: false };
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/entries?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/entries?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -110,7 +110,7 @@ export class API {
 
   static async flattenEntries(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/flatten?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/flatten?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
@@ -126,7 +126,7 @@ export class API {
 
   static async removeExif(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/removeExif?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/removeExif?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
@@ -140,13 +140,13 @@ export class API {
     });
   }
 
-  static async getMetadata(): Promise<APIResult<Metadata>> {
+  static async getMetadata(): Promise<APIResult<APIMetadata>> {
     if (API.files.length < 1) {
       return { data: {}, error: false };
     }
 
-    return abortableRequest(async (signal): Promise<APIResult<Metadata>> => {
-      const resp = await fetch(`/cbz/metadata?${fileParam(API.files)}`, {
+    return abortableRequest(async (signal): Promise<APIResult<APIMetadata>> => {
+      const resp = await fetch(`/archive/metadata?${fileParam(API.files)}`, {
         signal,
       });
       const body = await resp.json();
@@ -165,7 +165,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/metadata?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/metadata?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -183,15 +183,15 @@ export class API {
     });
   }
 
-  static async setBulkMetadata(metadata: {
-    [key: string]: Metadata;
-  }): Promise<APIResult<boolean>> {
+  static async setBulkMetadata(
+    metadata: MetadataMap
+  ): Promise<APIResult<boolean>> {
     if (API.files.length < 1) {
       return { error: false, data: true };
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/metadata/bulk`, {
+      const resp = await fetch(`/archive/metadata/bulk`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -213,12 +213,12 @@ export class API {
     if (API.files.length > 1) {
       return '';
     }
-    return `/cbz/cover?${fileParam(API.files)}`;
+    return `/archive/cover?${fileParam(API.files)}`;
   }
 
   static async setCover(entry: Entry): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/cover?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/cover?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -235,9 +235,9 @@ export class API {
     });
   }
 
-  static async joinImages(joinList: JoinEntry[]): Promise<APIResult<boolean>> {
+  static async joinImages(joinList: JoinPair[]): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/image/join?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/image/join?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -256,7 +256,7 @@ export class API {
 
   static async delete(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/delete?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/delete?${fileParam(API.files)}`, {
         method: 'POST',
         signal,
       });
@@ -306,7 +306,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/cbz/split?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/split?${fileParam(API.files)}`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
