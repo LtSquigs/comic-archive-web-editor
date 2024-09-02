@@ -209,6 +209,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
     }, [initialSelectedId, elements]);
 
     useEffect(() => {
+      setLastSelectedId(initialSelectedId);
       setSelectedId(
         multiSelect
           ? initialSelectedId
