@@ -13,9 +13,12 @@ export class CBZWriter implements ArchiveWriter {
   writer: Uint8ArrayWriter;
   zipWriter: ZipWriter<Uint8Array>;
 
-  constructor() {
+  constructor(signal?: AbortSignal) {
     this.writer = new Uint8ArrayWriter();
-    this.zipWriter = new ZipWriter(this.writer, { bufferedWrite: true });
+    this.zipWriter = new ZipWriter(this.writer, {
+      bufferedWrite: true,
+      signal,
+    });
   }
   async add(path: string, data: Buffer) {
     const bw = new BlobWriter();
@@ -34,10 +37,12 @@ export class CBZReader implements ArchiveReader {
   file: string;
   reader: ZipReader<Uint8Array>;
 
-  constructor(file: string) {
+  constructor(file: string, signal?: AbortSignal) {
     this.file = file;
     const data = fs.readFileSync(this.file);
-    this.reader = new ZipReader(new Uint8ArrayReader(new Uint8Array(data)));
+    this.reader = new ZipReader(new Uint8ArrayReader(new Uint8Array(data)), {
+      signal: signal,
+    });
   }
   async entries(): Promise<ArchiveEntry[]> {
     const entries: ArchiveEntry[] = [];

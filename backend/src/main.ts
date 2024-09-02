@@ -10,7 +10,6 @@ import {
 } from './lib.js';
 import {
   APIMetadata,
-  ConflictedMetadataEntry,
   EntryMap,
   JoinPair,
   Metadata,
@@ -49,24 +48,34 @@ app.get('/archive/list', async (req, res) => {
 });
 
 app.post('/archive/image/join', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
   const pairs: JoinPair[] = req.body || [];
 
   if (files.length > 1) {
     throw new Error('TOO MANY FILES');
   }
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
 
   try {
     await archive.combineImages(pairs);
   } finally {
-    archive.close();
+    await archive.close();
   }
   res.json({ success: true });
 });
 
 app.get('/archive/image', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
 
   if (files.length > 1) {
@@ -75,7 +84,7 @@ app.get('/archive/image', async (req, res) => {
 
   const entry = req.query['entry'] as string;
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
 
   try {
@@ -88,18 +97,23 @@ app.get('/archive/image', async (req, res) => {
     res.set('Content-Type', mime || undefined);
     res.send(img);
   } finally {
-    archive.close();
+    await archive.close();
   }
 });
 
 app.get('/archive/cover', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
 
   if (files.length > 1) {
     throw new Error('TOO MANY FILES');
   }
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
 
   try {
@@ -112,11 +126,16 @@ app.get('/archive/cover', async (req, res) => {
     res.set('Content-Type', mime || undefined);
     res.send(img);
   } finally {
-    archive.close();
+    await archive.close();
   }
 });
 
 app.post('/archive/cover', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
   const newCover: string = (req.body || {}).entry;
 
@@ -128,7 +147,7 @@ app.post('/archive/cover', async (req, res) => {
     throw new Error('No Cover Selected');
   }
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
   try {
     await archive.setCover(newCover);
@@ -140,22 +159,32 @@ app.post('/archive/cover', async (req, res) => {
 });
 
 app.get('/archive/entries', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
 
   if (files.length > 1) {
     throw new Error('TOO MANY FILES');
   }
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
   try {
     res.json({ entries: await archive.entries() });
   } finally {
-    archive.close();
+    await archive.close();
   }
 });
 
 app.post('/archive/entries', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
   const nameMap: EntryMap = req.body || {};
 
@@ -163,7 +192,7 @@ app.post('/archive/entries', async (req, res) => {
     throw new Error('TOO MANY FILES');
   }
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
   try {
     await archive.renameEntries(nameMap);
@@ -175,6 +204,12 @@ app.post('/archive/entries', async (req, res) => {
 });
 
 app.post('/archive/split', async (req, res) => {
+  const ac = new AbortController();
+
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const files = getFiles(req);
   const splits: Split[] = req.body || [];
 
@@ -186,7 +221,7 @@ app.post('/archive/split', async (req, res) => {
     return res.json({ success: true });
   }
 
-  const archive = new Archive(files[0].resolved);
+  const archive = new Archive(files[0].resolved, ac.signal);
   await archive.load();
   try {
     await archive.split(splits);
@@ -198,8 +233,13 @@ app.post('/archive/split', async (req, res) => {
 });
 
 app.post('/archive/flatten', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   for (const { resolved } of getFiles(req)) {
-    const archive = new Archive(resolved);
+    const archive = new Archive(resolved, ac.signal);
     await archive.load();
     try {
       await archive.flatten();
@@ -212,8 +252,13 @@ app.post('/archive/flatten', async (req, res) => {
 });
 
 app.post('/archive/removeExif', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   for (const { resolved } of getFiles(req)) {
-    const archive = new Archive(resolved);
+    const archive = new Archive(resolved, ac.signal);
     await archive.load();
     try {
       await archive.removeExif();
@@ -234,10 +279,13 @@ app.post('/archive/delete', async (req, res) => {
 });
 
 app.get('/archive/metadata', async (req, res) => {
+  const ac = new AbortController();
+
   const files = getFiles(req);
   let terminated = false;
 
-  req.on('close', () => {
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
     terminated = true;
   });
 
@@ -261,8 +309,8 @@ app.get('/archive/metadata', async (req, res) => {
     }
     const file = files[idx];
     const archive = new Archive(file.resolved);
-    await archive.load();
     try {
+      await archive.load();
       const metadata: Metadata = (await archive.getMetadata()).copyOut();
       if (allMetadata === undefined) {
         allMetadata = metadata;
@@ -293,6 +341,9 @@ app.get('/archive/metadata', async (req, res) => {
           }
         }
       }
+    } catch (e: any) {
+      res.json({ error: e, errorStr: e.message });
+      terminated = true;
     } finally {
       archive.close();
     }
@@ -305,10 +356,15 @@ app.get('/archive/metadata', async (req, res) => {
 });
 
 app.post('/archive/metadata', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const newMetadata: Metadata = req.body || {};
 
   for (const file of getFiles(req)) {
-    const archive = new Archive(file.resolved);
+    const archive = new Archive(file.resolved, ac.signal);
     await archive.load();
     try {
       const oldMetadata = (await archive.getMetadata()).copyOut();
@@ -328,10 +384,15 @@ app.post('/archive/metadata', async (req, res) => {
 });
 
 app.post('/archive/metadata/bulk', async (req, res) => {
+  const ac = new AbortController();
+  req.once('close', () => {
+    if (!req.complete) ac.abort();
+  });
+
   const metadata: MetadataMap = req.body.metadata || {};
 
   for (const { file, resolved } of getFileFromBody(req)) {
-    const archive = new Archive(resolved);
+    const archive = new Archive(resolved, ac.signal);
     await archive.load();
     try {
       const oldMetadata = (await archive.getMetadata()).copyOut();

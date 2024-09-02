@@ -103,14 +103,19 @@ export function App() {
     setEntries(entries.data);
   };
 
-  const refreshFiles = async (selectedFile: string | undefined = undefined) => {
+  const refreshFiles = async (
+    selectedFile: string | undefined = undefined,
+    noRedirect?: boolean
+  ) => {
     if (fileRef.current) await fileRef.current.refresh();
     setDeleteStatus(ActionState.NONE);
-    setSelectedFiles(selectedFile ? [selectedFile] : []);
-    setDefaultSelectedFile(selectedFile);
-    setSelectedTab('metadata');
-    setEntries([]);
-    setMetadata({});
+    if (!noRedirect) {
+      setSelectedFiles(selectedFile ? [selectedFile] : []);
+      setDefaultSelectedFile(selectedFile);
+      setSelectedTab('metadata');
+      setEntries([]);
+      setMetadata({});
+    }
   };
 
   const onDelete = async () => {
@@ -231,8 +236,11 @@ export function App() {
                     <ArchiveSplitter
                       entries={imageEntries}
                       file={selectedFiles[0]}
-                      onSplit={async (splits: SplitMarker[]) => {
-                        await refreshFiles(splits[0].filename);
+                      onSplit={async (
+                        splits: SplitMarker[],
+                        noRedirect: boolean
+                      ) => {
+                        await refreshFiles(splits[0].filename, noRedirect);
                       }}
                     ></ArchiveSplitter>
                   )}

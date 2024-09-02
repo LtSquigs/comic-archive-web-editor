@@ -25,11 +25,13 @@ export class Archive {
   dirty: boolean;
   reader: ArchiveReader | null;
   file = '';
+  signal: AbortSignal | undefined;
 
-  constructor(filename: string) {
+  constructor(filename: string, signal?: AbortSignal) {
     this.file = filename;
     this.reader = null;
     this.dirty = false;
+    this.signal = signal;
   }
 
   getReader(): ArchiveReader {
@@ -38,7 +40,7 @@ export class Archive {
 
     for (const reader of readers) {
       if (reader.extensions.includes(ext)) {
-        return new reader(this.file);
+        return new reader(this.file, this.signal);
       }
     }
 
@@ -51,7 +53,7 @@ export class Archive {
 
     for (const writer of writers) {
       if (writer.extensions.includes(ext)) {
-        return new writer();
+        return new writer(this.signal);
       }
     }
 
@@ -61,6 +63,8 @@ export class Archive {
   // Loads the archive from disk or from cache if mtime has not changed
   // will handle closing the last archive if it is still open in memory.
   async load() {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
+
     const stats = fs.statSync(this.file);
     if (
       fileCache.filename === this.file &&
@@ -89,6 +93,7 @@ export class Archive {
 
   // Retrives a list of all entries in the archive
   async entries(): Promise<Entry[]> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [];
     if (this.dirty) await this.reload();
 
@@ -128,6 +133,7 @@ export class Archive {
 
   // Flattens every entry in the archive to remove directories
   async flatten(): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -147,6 +153,7 @@ export class Archive {
 
   // Retrives the metadata object contained in an archive
   async getMetadata(): Promise<ComicInfo> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return new ComicInfo();
     if (this.dirty) await this.reload();
 
@@ -166,6 +173,7 @@ export class Archive {
   // Saves the metadata to a ComicInfo.xml entry in the archive
   // Overwrites existing ComicInfo.xml if it exists.
   async setMetadata(metadata: any): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -187,6 +195,7 @@ export class Archive {
   // Renames entries in the archive according to the map given
   // Map is expected to be a map of old entry names to new entry names
   async renameEntries(map: EntryMap = {}): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -204,6 +213,7 @@ export class Archive {
 
   // Removes EXIF data from images detected in archive
   async removeExif(): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -227,6 +237,7 @@ export class Archive {
   // Retrieves the cover image from the archive if it exists.
   // Otherwise it returns the first image sorted as the cover.
   async getCover(): Promise<[Buffer | null, string | null]> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
 
@@ -263,6 +274,7 @@ export class Archive {
   // Copies the entry indicated by coverFileName to the the cover file
   // called cover.<jpg, png, webp, etc>
   async setCover(coverFileName: string): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -298,6 +310,7 @@ export class Archive {
   async getImageByName(
     targetEntry: string
   ): Promise<[Buffer | null, string | null]> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
 
@@ -327,6 +340,7 @@ export class Archive {
   // Combines images together in archive by the JoinPair's provided
   // Removes original images after join.
   async combineImages(imagePairs: JoinPair[]): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -428,6 +442,7 @@ export class Archive {
   // are split among the archives, non image files are saved in
   // the first archive created and not others.
   async split(splits: Split[]): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
 
@@ -475,6 +490,7 @@ export class Archive {
 
   // Reloads the CBZ file in memory from disk and clears dirty flag
   async reload(): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
 
     await this.reader.close();
@@ -490,6 +506,7 @@ export class Archive {
 
   // Saves file to disk and marks data as dirty for future reads
   async save(data: Buffer): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
     fs.writeFileSync(this.file, data);
     this.dirty = true;
   }
