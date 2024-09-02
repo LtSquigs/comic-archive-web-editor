@@ -10,9 +10,9 @@ import {
 } from '../shared/types';
 
 let abortController: AbortController | null = null;
-export const abortableRequest = async (
+export const abortableRequest = async <T>(
   fn: (signal: AbortSignal) => Promise<any>
-): Promise<any> => {
+): Promise<APIResult<T>> => {
   if (abortController) {
     abortController.abort();
   }
@@ -21,7 +21,7 @@ export const abortableRequest = async (
     return await fn(abortController.signal);
   } catch (error: any) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      return false;
+      return { error: true, errorStr: error.message };
     }
 
     throw error;
@@ -58,7 +58,7 @@ export class API {
     const body = await resp.json();
 
     if (body.error) {
-      return { data: [], error: true, errorStr: body.error };
+      return { error: true, errorStr: body.error };
     }
 
     return { data: body.paths, error: false };
@@ -76,7 +76,7 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: [], error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
 
       return { data: body.entries, error: false };
@@ -101,10 +101,10 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: false, error: false, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
 
-      return { data: body.success, error: false, errorStr: '' };
+      return { data: body.success, error: false };
     });
   }
 
@@ -117,10 +117,10 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: false, error: false, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
 
-      return { data: body.success, error: false, errorStr: '' };
+      return { data: body.success, error: false };
     });
   }
 
@@ -133,10 +133,10 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: false, error: false, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
 
-      return { data: body.success, error: false, errorStr: '' };
+      return { data: body.success, error: false };
     });
   }
 
@@ -152,7 +152,7 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: {}, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
 
       return { data: body.metadata, error: false };
@@ -177,7 +177,7 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });
@@ -203,7 +203,7 @@ export class API {
       const body = await resp.json();
 
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });
@@ -229,7 +229,7 @@ export class API {
       });
       const body = await resp.json();
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });
@@ -248,7 +248,7 @@ export class API {
       });
       const body = await resp.json();
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });
@@ -262,7 +262,7 @@ export class API {
       });
       const body = await resp.json();
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });
@@ -272,7 +272,7 @@ export class API {
     markers: SplitMarker[],
     entries: Entry[]
   ): Promise<APIResult<boolean>> {
-    const splits: any[] = [];
+    const splits: { filename: string; entries: string[] }[] = [];
 
     markers.sort((a, b) => {
       if (a.startEntry > b.startEntry) {
@@ -284,11 +284,11 @@ export class API {
       return 0;
     });
 
-    for (let marker of markers) {
+    for (const marker of markers) {
       const mapEntry = { filename: marker.filename, entries: [] as string[] };
 
       let inBlock = false;
-      for (let entry of entries) {
+      for (const entry of entries) {
         if (entry.entryName === marker.startEntry) {
           inBlock = true;
         }
@@ -317,7 +317,7 @@ export class API {
       });
       const body = await resp.json();
       if (body.error) {
-        return { data: false, error: true, errorStr: body.error };
+        return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
     });

@@ -79,19 +79,14 @@ export function JoinPages({
   const joinImages = async () => {
     if (joinList.current.length >= 1) {
       setJoinStatus(ActionState.INPROGRESS);
-      const {
-        data: success,
-        error,
-        errorStr,
-      } = await API.joinImages(joinList.current);
+      const join = await API.joinImages(joinList.current);
       setJoinStatus(ActionState.NONE);
       toast({
-        title: success && !error ? 'Task Finished' : 'Task Failed',
-        variant: success && !error ? 'default' : 'destructive',
-        description:
-          success && !error
-            ? 'Joining images completed.'
-            : `Error occured while joining images: ${errorStr}.`,
+        title: !join.error ? 'Task Finished' : 'Task Failed',
+        variant: !join.error ? 'default' : 'destructive',
+        description: !join.error
+          ? 'Joining images completed.'
+          : `Error occured while joining images: ${join.errorStr}.`,
       });
     }
     joinList.current = [];

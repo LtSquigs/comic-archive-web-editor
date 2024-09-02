@@ -122,19 +122,14 @@ export function PageMetadata({
 
   const onUpdateMetadata = async (metadata: APIMetadata) => {
     setMetadataStatus(ActionState.INPROGRESS);
-    const {
-      data: success,
-      error,
-      errorStr,
-    } = await API.setMetadata(metadata as Metadata);
+    const setData = await API.setMetadata(metadata as Metadata);
     setMetadataStatus(ActionState.NONE);
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Saving page metadata completed.'
-          : `Error occured while saving page metadata: ${errorStr}.`,
+      title: !setData.error ? 'Task Finished' : 'Task Failed',
+      variant: !setData.error ? 'default' : 'destructive',
+      description: !setData.error
+        ? 'Saving page metadata completed.'
+        : `Error occured while saving page metadata: ${setData.errorStr}.`,
     });
   };
 

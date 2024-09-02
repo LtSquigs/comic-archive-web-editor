@@ -41,7 +41,7 @@ export class CBZReader implements ArchiveReader {
   }
   async entries(): Promise<ArchiveEntry[]> {
     const entries: ArchiveEntry[] = [];
-    for (let entry of await this.reader.getEntries()) {
+    for (const entry of await this.reader.getEntries()) {
       entries.push({
         filename: entry.filename,
         directory: entry.directory,

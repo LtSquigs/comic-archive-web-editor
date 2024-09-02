@@ -55,7 +55,7 @@ const createEntryMap = (
   stripWhitespace: boolean = true,
   normalize: boolean = true
 ): string[] => {
-  const regexs: any = replacementPatterns
+  const regexs: { regex: RegExp; replacement: string }[] = replacementPatterns
     .map((pattern) => {
       try {
         const fullMatch = pattern.match(fullRegex);
@@ -68,14 +68,14 @@ const createEntryMap = (
           const rx = partialMatch[1];
           const flags = partialMatch[2];
 
-          return [new RegExp(rx, flags), ''];
+          return { regex: new RegExp(rx, flags), replacement: '' };
         }
 
         const rx = fullMatch[1];
         const replacement = fullMatch[2];
         const flags = fullMatch[3];
 
-        return [new RegExp(rx, flags), replacement];
+        return { regex: new RegExp(rx, flags), replacement: replacement };
       } catch {
         return null;
       }
@@ -84,8 +84,8 @@ const createEntryMap = (
 
   const renamedEntries = entries.map((entry) => {
     let baseName = entry.baseName;
-    for (let regex of regexs) {
-      baseName = baseName.replace(regex[0], regex[1]);
+    for (const regex of regexs) {
+      baseName = baseName.replace(regex.regex, regex.replacement);
     }
 
     const ext = entry.extName === '.jpeg' ? '.jpg' : entry.extName;
@@ -217,49 +217,46 @@ export function EntriesEditor({
       map[entries[i].entryName] = mappedEntries[i];
     }
     setRenameStatus(ActionState.INPROGRESS);
-    const { data: success, error, errorStr } = await API.renameEntries(map);
+    const renamedEntries = await API.renameEntries(map);
     await onEntriesChanged();
     setRenameStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Renaming entries completed.'
-          : `Error occured while renaming entries: ${errorStr}.`,
+      title: !renamedEntries.error ? 'Task Finished' : 'Task Failed',
+      variant: !renamedEntries.error ? 'default' : 'destructive',
+      description: !renamedEntries.error
+        ? 'Renaming entries completed.'
+        : `Error occured while renaming entries: ${renamedEntries.errorStr}.`,
     });
   };
 
   const onFlattenEntries = async () => {
     setFlattenStatus(ActionState.INPROGRESS);
-    const { data: success, error, errorStr } = await API.flattenEntries();
+    const flattened = await API.flattenEntries();
     await onEntriesChanged();
     setFlattenStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Flattening entries completed.'
-          : `Error occured while flattening entries: ${errorStr}.`,
+      title: !flattened.error ? 'Task Finished' : 'Task Failed',
+      variant: !flattened.error ? 'default' : 'destructive',
+      description: !flattened.error
+        ? 'Flattening entries completed.'
+        : `Error occured while flattening entries: ${flattened.errorStr}.`,
     });
   };
 
   const onRemoveExif = async () => {
     setExifStatus(ActionState.INPROGRESS);
-    const { data: success, error, errorStr } = await API.removeExif();
+    const exif = await API.removeExif();
     await onEntriesChanged();
     setExifStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Removing EXIF data completed.'
-          : `Error occured while removing EXIF data: ${errorStr}`,
+      title: !exif.error ? 'Task Finished' : 'Task Failed',
+      variant: !exif.error ? 'default' : 'destructive',
+      description: !exif.error
+        ? 'Removing EXIF data completed.'
+        : `Error occured while removing EXIF data: ${exif.errorStr}`,
     });
   };
 

@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActionState } from './types';
-import { Metadata, MetadataMap } from '../shared/types';
+import {
+  AgeRating,
+  BlackAndWhite,
+  Manga,
+  Metadata,
+  BaseMetadata,
+  MetadataMap,
+} from '../shared/types';
 
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
@@ -9,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
 
-const validKeys = {
+const validKeys: { [Property in keyof BaseMetadata]: RegExp } = {
   title: /title/i,
   series: /series/i,
   localizedSeries: /localizedSeries/i,
@@ -57,50 +64,19 @@ const validKeys = {
   GTIN: /GTIN/i,
 };
 
-const BlackAndWhiteReverse = {
-  Unknown: 'UNKNOWN',
-  No: 'NO',
-  Yes: 'YES',
-} as any;
+const reverseEnum = (toReverse: { [key: string]: string }) => {
+  const reversedObj = {} as { [key: string]: string };
 
-const MangaReverse = {
-  Unknown: 'UNKNOWN',
-  No: 'NO',
-  Yes: 'YES',
-  YesAndRightToLeft: 'YES_RTL',
-} as any;
+  for (const key of Object.keys(toReverse)) {
+    reversedObj[toReverse[key]] = key;
+  }
 
-const AgeRatingReverse = {
-  Unknown: 'UNKNOWN',
-  'Adults Only 18+': 'ADULTS_ONLY',
-  'Early Childhood': 'EARLY_CHILDHOOD',
-  Everyone: 'EVERYONE',
-  'Everyone 10+': 'EVERYONE_10',
-  G: 'G',
-  'Kids to Adults': 'KIDS_TO_ADULTS',
-  M: 'M',
-  'MA15+': 'MA15',
-  'Mature 17+': 'MA17',
-  PG: 'PG',
-  'R18+': 'R18',
-  'Rating Pending': 'RATING_PENDING',
-  Teen: 'TEEN',
-  'X18+': 'X18',
-} as any;
+  return reversedObj;
+};
 
-const PageTypeReverse = {
-  FrontCover: 'FRONT_COVER',
-  InnerCover: 'INNER_COVER',
-  Roundup: 'ROUNDUP',
-  Story: 'STORY',
-  Advertisement: 'ADVERTISEMENT',
-  Editorial: 'EDITORIAL',
-  Letters: 'LETTERS',
-  Preview: 'PREVIEW',
-  BackCover: 'BACK_COVER',
-  Other: 'OTHER',
-  Deleted: 'DELETED',
-} as any;
+const BlackAndWhiteReverse = reverseEnum(BlackAndWhite);
+const MangaReverse = reverseEnum(Manga);
+const AgeRatingReverse = reverseEnum(AgeRating);
 
 export function BulkMetadata({ files }: { files: string[] }) {
   const [bulkStatus, setBulkStatus] = useState(ActionState.NONE);
@@ -132,10 +108,10 @@ export function BulkMetadata({ files }: { files: string[] }) {
 
     const fieldMap = {} as { [key: string]: string };
 
-    for (let field of result.meta.fields || []) {
+    for (const field of result.meta.fields || []) {
       let foundKey = false;
-      for (let key in validKeys) {
-        const regex = (validKeys as any)[key];
+      for (const key in validKeys) {
+        const regex = validKeys[key as keyof BaseMetadata];
         if (field.match(regex)) {
           foundKey = true;
           fieldMap[field] = key;
@@ -164,7 +140,7 @@ export function BulkMetadata({ files }: { files: string[] }) {
       const parsed = data[i];
       const file = orderedFiles[i];
 
-      for (let key in parsed) {
+      for (const key in parsed) {
         const mappedKey = fieldMap[key];
         if (key !== mappedKey) {
           (parsed as any)[mappedKey] = parsed[key as keyof Metadata];
@@ -181,20 +157,23 @@ export function BulkMetadata({ files }: { files: string[] }) {
 
       if (parsed.blackAndWhite) {
         if (BlackAndWhiteReverse[parsed.blackAndWhite as any]) {
-          parsed.blackAndWhite =
-            BlackAndWhiteReverse[parsed.blackAndWhite as any];
+          parsed.blackAndWhite = BlackAndWhiteReverse[
+            parsed.blackAndWhite as any
+          ] as BlackAndWhite;
         }
       }
 
       if (parsed.manga) {
         if (MangaReverse[parsed.manga as any]) {
-          parsed.manga = MangaReverse[parsed.manga as any];
+          parsed.manga = MangaReverse[parsed.manga as any] as Manga;
         }
       }
 
       if (parsed.ageRating) {
         if (AgeRatingReverse[parsed.ageRating as any]) {
-          parsed.ageRating = AgeRatingReverse[parsed.ageRating as any];
+          parsed.ageRating = AgeRatingReverse[
+            parsed.ageRating as any
+          ] as AgeRating;
         }
       }
 
@@ -202,20 +181,15 @@ export function BulkMetadata({ files }: { files: string[] }) {
     }
 
     setBulkStatus(ActionState.INPROGRESS);
-    const {
-      data: success,
-      error,
-      errorStr,
-    } = await API.setBulkMetadata(metadataMap);
+    const bulkMetadata = await API.setBulkMetadata(metadataMap);
     setBulkStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Bulk application of metadata completed.'
-          : `An error occured while applying metadata: ${errorStr}.`,
+      title: !bulkMetadata.error ? 'Task Finished' : 'Task Failed',
+      variant: !bulkMetadata.error ? 'default' : 'destructive',
+      description: !bulkMetadata.error
+        ? 'Bulk application of metadata completed.'
+        : `An error occured while applying metadata: ${bulkMetadata.errorStr}.`,
     });
   };
 

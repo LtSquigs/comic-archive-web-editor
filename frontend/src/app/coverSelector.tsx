@@ -42,20 +42,15 @@ export function CoverSelector({
 
   const setCover = async () => {
     setCoverStatus(ActionState.INPROGRESS);
-    const {
-      data: success,
-      error,
-      errorStr,
-    } = await API.setCover(entries[coverIdx]);
+    const cover = await API.setCover(entries[coverIdx]);
     setCoverStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Setting cover completed.'
-          : `Error occured while setting cover: ${error}.`,
+      title: !cover.error ? 'Task Finished' : 'Task Failed',
+      variant: !cover.error ? 'default' : 'destructive',
+      description: !cover.error
+        ? 'Setting cover completed.'
+        : `Error occured while setting cover: ${cover.errorStr}.`,
     });
 
     setEditing(false);

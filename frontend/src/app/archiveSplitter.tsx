@@ -72,7 +72,7 @@ export function ArchiveSplitter({
         const oldMarker = prevValue.find(
           (marker) => marker.startEntry === entry.entryName
         );
-        (oldMarker || ({} as any)).filename = newMarker.filename;
+        (oldMarker || ({} as SplitMarker)).filename = newMarker.filename;
 
         return newArray;
       });
@@ -103,7 +103,7 @@ export function ArchiveSplitter({
         const nextEntry = newArray[i + 1] || { startEntry: '' };
 
         let prevEntry = entries[0];
-        for (let entry of entries) {
+        for (const entry of entries) {
           if (entry.isDirectory || !entry.isImage) {
             continue;
           }
@@ -148,7 +148,7 @@ export function ArchiveSplitter({
         const nextEntry = newArray[i + 1] || { startEntry: '' };
 
         let prevEntry = entries[0];
-        for (let entry of entries) {
+        for (const entry of entries) {
           if (entry.isDirectory || !entry.isImage) {
             continue;
           }
@@ -184,20 +184,15 @@ export function ArchiveSplitter({
 
   const splitArchive = async () => {
     setSplitStatus(ActionState.INPROGRESS);
-    const {
-      data: success,
-      error,
-      errorStr,
-    } = await API.splitArchive(splitMarkers, entries);
+    const split = await API.splitArchive(splitMarkers, entries);
     setSplitStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Splitting archive completed.'
-          : `Error occured while splitting archive: ${errorStr}.`,
+      title: !split.error ? 'Task Finished' : 'Task Failed',
+      variant: !split.error ? 'default' : 'destructive',
+      description: !split.error
+        ? 'Splitting archive completed.'
+        : `Error occured while splitting archive: ${split.errorStr}.`,
     });
 
     setNewFileName(file);

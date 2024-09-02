@@ -19,8 +19,11 @@ type FileTree = {
 };
 
 const getFileTree = async (dir: string = '') => {
-  const { data: files, error, errorStr } = await API.getArchiveFiles(dir);
-  const tree = files.map((file): FileTree => {
+  const files = await API.getArchiveFiles(dir);
+  if (files.error) {
+    return [];
+  }
+  const tree = files.data.map((file): FileTree => {
     return {
       id: file.path,
       parent: file.parentPath,
@@ -38,7 +41,7 @@ const getFileTree = async (dir: string = '') => {
 };
 
 const findTree = (id: string, trees: FileTree[]): FileTree | null => {
-  for (let tree of trees) {
+  for (const tree of trees) {
     if (tree.id === id) {
       return tree;
     }
@@ -88,7 +91,7 @@ export const FileList = forwardRef(function FileList(
 
     const items = await getFileTree();
     const loadedItems = [];
-    for (let item of items) {
+    for (const item of items) {
       if (expandedFolders.includes(item.id)) {
         const loadedItem = await loadSubfolders(item.id, items);
         loadedItems.push(loadedItem ?? item);
@@ -115,7 +118,7 @@ export const FileList = forwardRef(function FileList(
     if (foundTree) {
       const items = await getFileTree(dir);
       const loadedItems = [];
-      for (let child of items) {
+      for (const child of items) {
         if (expandedFolders.includes(child.id)) {
           loadedItems.push((await loadSubfolders(child.id, items)) ?? child);
         } else {
@@ -201,7 +204,7 @@ export const FileList = forwardRef(function FileList(
 
     const group = [];
 
-    for (let tree of elements) {
+    for (const tree of elements) {
       if (tree.hasChildren) {
         let folderElements = null;
         let expanded = expandedFolders.includes(tree.id);

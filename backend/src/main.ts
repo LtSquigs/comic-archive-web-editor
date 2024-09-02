@@ -10,6 +10,7 @@ import {
 } from './lib.js';
 import {
   APIMetadata,
+  ConflictedMetadataEntry,
   EntryMap,
   JoinPair,
   Metadata,
@@ -197,7 +198,7 @@ app.post('/archive/split', async (req, res) => {
 });
 
 app.post('/archive/flatten', async (req, res) => {
-  for (let { resolved } of getFiles(req)) {
+  for (const { resolved } of getFiles(req)) {
     const archive = new Archive(resolved);
     await archive.load();
     try {
@@ -211,7 +212,7 @@ app.post('/archive/flatten', async (req, res) => {
 });
 
 app.post('/archive/removeExif', async (req, res) => {
-  for (let { resolved } of getFiles(req)) {
+  for (const { resolved } of getFiles(req)) {
     const archive = new Archive(resolved);
     await archive.load();
     try {
@@ -225,7 +226,7 @@ app.post('/archive/removeExif', async (req, res) => {
 });
 
 app.post('/archive/delete', async (req, res) => {
-  for (let { resolved } of getFiles(req)) {
+  for (const { resolved } of getFiles(req)) {
     fs.unlinkSync(resolved);
   }
 
@@ -241,7 +242,10 @@ app.get('/archive/metadata', async (req, res) => {
   });
 
   let idx = 0;
-  let allMetadata: any = undefined;
+  let allMetadata: APIMetadata | undefined = undefined;
+
+  // This loop is done with setImmediate because with a large enough
+  // fileset of large files, it will DOS the server otherwise.
   const loop = async () => {
     if (terminated) {
       res.end();
@@ -259,26 +263,33 @@ app.get('/archive/metadata', async (req, res) => {
     const archive = new Archive(file.resolved);
     await archive.load();
     try {
-      const metadata: any = (await archive.getMetadata()).copyOut();
+      const metadata: Metadata = (await archive.getMetadata()).copyOut();
       if (allMetadata === undefined) {
         allMetadata = metadata;
       } else {
         for (const prop in metadata) {
-          if (metadata[prop] !== allMetadata[prop] && prop !== 'pages') {
-            if (allMetadata.conflict) {
-              if (metadata[prop] !== null && metadata !== undefined) {
-                allMetadata.values.push(metadata[prop]);
+          let typedProp = prop as keyof Metadata;
+          const allValue = allMetadata[typedProp];
+          const metaValue = metadata[typedProp];
+          if (metaValue !== allValue && prop !== 'pages') {
+            if (
+              allValue !== null &&
+              typeof allValue === 'object' &&
+              'conflict' in allValue
+            ) {
+              if (metaValue !== null && metadata !== undefined) {
+                (allValue.values as any[]).push(metaValue);
               }
               continue;
             }
-            allMetadata[prop] = {
+            (allMetadata as any)[typedProp] = {
               conflict: true,
-              values: [allMetadata[prop], metadata[prop]].filter(
+              values: [allMetadata[typedProp], metadata[typedProp]].filter(
                 (val) => val !== null && val !== undefined
               ),
             };
           } else {
-            allMetadata[prop] = metadata[prop];
+            (allMetadata as any)[typedProp] = metadata[typedProp];
           }
         }
       }
@@ -296,13 +307,13 @@ app.get('/archive/metadata', async (req, res) => {
 app.post('/archive/metadata', async (req, res) => {
   const newMetadata: Metadata = req.body || {};
 
-  for (let file of getFiles(req)) {
+  for (const file of getFiles(req)) {
     const archive = new Archive(file.resolved);
     await archive.load();
     try {
       const oldMetadata = (await archive.getMetadata()).copyOut();
 
-      for (let prop in newMetadata) {
+      for (const prop in newMetadata) {
         if (newMetadata[prop as keyof Metadata] === undefined) {
           delete newMetadata[prop as keyof Metadata];
         }
@@ -319,14 +330,14 @@ app.post('/archive/metadata', async (req, res) => {
 app.post('/archive/metadata/bulk', async (req, res) => {
   const metadata: MetadataMap = req.body.metadata || {};
 
-  for (let { file, resolved } of getFileFromBody(req)) {
+  for (const { file, resolved } of getFileFromBody(req)) {
     const archive = new Archive(resolved);
     await archive.load();
     try {
       const oldMetadata = (await archive.getMetadata()).copyOut();
       const newMetadata = metadata[file];
 
-      for (let prop in newMetadata) {
+      for (const prop in newMetadata) {
         if (newMetadata[prop as keyof Metadata] === undefined) {
           delete newMetadata[prop as keyof Metadata];
         }

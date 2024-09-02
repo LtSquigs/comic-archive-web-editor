@@ -1,5 +1,3 @@
-'use client';
-
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
@@ -112,10 +110,10 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
               let newSelectedIds = [] as string[];
               if (event.shiftKey && lastSelectedId && selectGroups) {
                 let groupIds = prev?.includes(id) ? [] : [id];
-                for (let group of selectGroups) {
+                for (const group of selectGroups) {
                   if (group.includes(id) && group.includes(lastSelectedId)) {
                     let inBlock = false;
-                    for (let entry of group) {
+                    for (const entry of group) {
                       if (entry === id || entry === lastSelectedId) {
                         inBlock = !inBlock;
                       }

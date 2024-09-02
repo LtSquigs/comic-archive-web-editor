@@ -32,7 +32,7 @@ export function App() {
   const [defaultSelectedFile, setDefaultSelectedFile] = useState<
     string | undefined
   >(undefined);
-  const fileRef = useRef(null);
+  const fileRef = useRef<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,33 +49,29 @@ export function App() {
     (async () => {
       setLoading(ActionState.INPROGRESS);
 
-      const { data, error, errorStr } = await API.getEntries();
-      if (error) {
+      const entries = await API.getEntries();
+      if (entries.error) {
         toast({
           title: 'Task Failed',
           variant: 'destructive',
-          description: `Unable to load entries. Recieved Error ${errorStr}`,
+          description: `Unable to load entries. Recieved Error ${entries.errorStr}`,
         });
         setLoading(ActionState.NONE);
         return;
       }
-      setEntries(data);
+      setEntries(entries.data);
 
-      const {
-        data: mData,
-        error: mError,
-        errorStr: mErrorStr,
-      } = await API.getMetadata();
-      if (mError) {
+      const metadata = await API.getMetadata();
+      if (metadata.error) {
         toast({
           title: 'Task Failed',
           variant: 'destructive',
-          description: `Unable to load metadata. Recieved Error ${mErrorStr}`,
+          description: `Unable to load metadata. Recieved Error ${metadata.errorStr}`,
         });
         setLoading(ActionState.NONE);
         return;
       }
-      setMetadata(mData);
+      setMetadata(metadata.data);
 
       setLoading(ActionState.NONE);
     })();
@@ -90,19 +86,20 @@ export function App() {
   };
 
   const refreshEntries = async () => {
-    const { data: entries, error, errorStr } = await API.getEntries();
-    if (error) {
+    const entries = await API.getEntries();
+    if (entries.error) {
       toast({
         title: 'Task Failed',
         variant: 'destructive',
-        description: `Unable to refresh entries. Recieved Error ${errorStr}`,
+        description: `Unable to refresh entries. Recieved Error ${entries.errorStr}`,
       });
+      return;
     }
-    setEntries(entries);
+    setEntries(entries.data);
   };
 
   const refreshFiles = async (selectedFile: string | undefined = undefined) => {
-    if (fileRef.current) await (fileRef.current as any).refresh();
+    if (fileRef.current) await fileRef.current.refresh();
     setDeleteStatus(ActionState.NONE);
     setSelectedFiles(selectedFile ? [selectedFile] : []);
     setDefaultSelectedFile(selectedFile);
@@ -112,15 +109,14 @@ export function App() {
 
   const onDelete = async () => {
     setDeleteStatus(ActionState.INPROGRESS);
-    const { data: success, error, errorStr } = await API.delete();
+    const deleted = await API.delete();
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Deleting archive completed.'
-          : `Error occured while deleting archive: ${errorStr}.`,
+      title: !deleted.error ? 'Task Finished' : 'Task Failed',
+      variant: !deleted.error ? 'default' : 'destructive',
+      description: !deleted.error
+        ? 'Deleting archive completed.'
+        : `Error occured while deleting archive: ${deleted.errorStr}.`,
     });
 
     setDeleteStatus(ActionState.NONE);
@@ -146,7 +142,7 @@ export function App() {
               <Tabs
                 className={selectedTab === 'bulk' ? 'h-full' : ''}
                 value={selectedTab}
-                onValueChange={(value: any) => {
+                onValueChange={(value: string) => {
                   setSelectedTab(value);
                 }}
               >

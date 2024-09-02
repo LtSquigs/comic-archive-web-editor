@@ -11,11 +11,15 @@ export type SplitMarker = {
   filename: string;
 };
 
-export type APIResult<T> = {
-  error: boolean;
-  errorStr?: string;
-  data: T;
-};
+export type APIResult<T> =
+  | {
+      error: false;
+      data: T;
+    }
+  | {
+      error: true;
+      errorStr: string;
+    };
 
 export enum ActionState {
   NONE,

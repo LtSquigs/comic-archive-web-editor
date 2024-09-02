@@ -33,18 +33,32 @@ import { API } from './api';
 import CoverSelector from './coverSelector';
 import { useToast } from '@/hooks/use-toast';
 
-type fieldComponents = {
-  [Property in keyof Metadata]?: {
-    type?: 'select' | 'number';
-    help?: string;
-    multiline?: boolean;
-    label?: string;
-    min?: number;
-    max?: number;
-    enum?: any;
-    step?: number;
-  };
-};
+type fieldComponents =
+  | {
+      [Property in keyof Metadata]?: {
+        type: 'number';
+        help?: string;
+        label?: string;
+        min?: number;
+        max?: number;
+        step?: number;
+      };
+    }
+  | {
+      [Property in keyof Metadata]?: {
+        type: 'select';
+        help?: string;
+        label?: string;
+        enum: typeof BlackAndWhite | typeof Manga | typeof AgeRating;
+      };
+    }
+  | {
+      [Property in keyof Metadata]?: {
+        help?: string;
+        multiline?: boolean;
+        label?: string;
+      };
+    };
 
 const fields: fieldComponents = {
   title: { help: 'Title of the book.' },
@@ -207,7 +221,7 @@ export function MetadataEditor({
   const saveMetadata = async () => {
     const toDelete = [];
 
-    for (let key in currentMetadata) {
+    for (const key in currentMetadata) {
       const obj = currentMetadata[key as keyof APIMetadata];
       if (obj && typeof obj === 'object' && 'conflict' in obj) {
         toDelete.push(key);
@@ -219,20 +233,15 @@ export function MetadataEditor({
     });
 
     setMetadataStatus(ActionState.INPROGRESS);
-    const {
-      data: success,
-      error,
-      errorStr,
-    } = await API.setMetadata(currentMetadata as Metadata);
+    const setData = await API.setMetadata(currentMetadata as Metadata);
     setMetadataStatus(ActionState.NONE);
 
     toast({
-      title: success && !error ? 'Task Finished' : 'Task Failed',
-      variant: success && !error ? 'default' : 'destructive',
-      description:
-        success && !error
-          ? 'Saving metadata completed.'
-          : `Error occured while saving metadata: ${errorStr}.`,
+      title: !setData.error ? 'Task Finished' : 'Task Failed',
+      variant: !setData.error ? 'default' : 'destructive',
+      description: !setData.error
+        ? 'Saving metadata completed.'
+        : `Error occured while saving metadata: ${setData.errorStr}.`,
     });
   };
 
@@ -264,13 +273,13 @@ export function MetadataEditor({
       setCurrentMetadata((prevValue) => {
         const cloned = { ...prevValue };
 
-        if (field.type === 'select') {
+        if ('type' in field && field.type === 'select') {
           if (value === 'REMOVE') {
             (cloned as any)[name] = null;
           } else {
             cloned[name] = value;
           }
-        } else if (field.type === 'number') {
+        } else if ('type' in field && field.type === 'number') {
           if (value === '' || value === undefined || value === null) {
             (cloned as any)[name] = null;
           } else {
@@ -293,7 +302,7 @@ export function MetadataEditor({
       });
     };
 
-    if (field.type === 'select') {
+    if ('type' in field && field.type === 'select') {
       return (
         <div className={className}>
           <div className={'flex mb-1'}>
@@ -318,7 +327,7 @@ export function MetadataEditor({
                 <i>Remove</i>
               </SelectItem>
               {Object.keys(field.enum).map((val) => {
-                const label = field.enum[val];
+                const label = (field.enum as any)[val];
                 return <SelectItem value={val}>{label}</SelectItem>;
               })}
             </SelectContent>
@@ -327,7 +336,7 @@ export function MetadataEditor({
       );
     }
 
-    if (field.type === 'number') {
+    if ('type' in field && field.type === 'number') {
       return (
         <div className={className}>
           <div className={'flex mb-1'}>

@@ -36,7 +36,7 @@ export class Archive {
     const readers = REGISTERED_READERS;
     const ext = path.extname(this.file);
 
-    for (let reader of readers) {
+    for (const reader of readers) {
       if (reader.extensions.includes(ext)) {
         return new reader(this.file);
       }
@@ -49,7 +49,7 @@ export class Archive {
     const writers = REGISTERED_WRITERS;
     const ext = path.extname(this.file);
 
-    for (let writer of writers) {
+    for (const writer of writers) {
       if (writer.extensions.includes(ext)) {
         return new writer();
       }
@@ -93,7 +93,7 @@ export class Archive {
     if (this.dirty) await this.reload();
 
     const entries = [];
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       const ext = path.extname(entry.filename);
       const baseName = path.basename(entry.filename, ext);
       const dir = path.dirname(entry.filename);
@@ -133,7 +133,7 @@ export class Archive {
 
     const writer = this.getWriter();
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       const ext = path.extname(entry.filename);
       const baseName = path.basename(entry.filename, ext);
 
@@ -151,7 +151,7 @@ export class Archive {
     if (this.dirty) await this.reload();
 
     const nameRegex = new RegExp(`^ComicInfo\.xml$`, 'i');
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       const name = entry.filename;
 
       if (name.match(nameRegex)) {
@@ -173,7 +173,7 @@ export class Archive {
     const writer = this.getWriter();
 
     const nameRegex = new RegExp(`^ComicInfo\.xml$`, 'i');
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       if (!entry.directory && !entry.filename.match(nameRegex)) {
         await writer.add(entry.filename, await entry.getData());
       }
@@ -192,7 +192,7 @@ export class Archive {
 
     const writer = this.getWriter();
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       let entryName = entry.filename;
       if (map[entryName]) {
         await writer.add(map[entryName], await entry.getData());
@@ -209,7 +209,7 @@ export class Archive {
 
     const writer = this.getWriter();
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       if (!entry.directory) {
         let data = await entry.getData();
         const mimeType = (mime as any).getType(entry.filename);
@@ -236,7 +236,7 @@ export class Archive {
     );
     let cover = null;
 
-    for (let entry of entries) {
+    for (const entry of entries) {
       const mimeType = (mime as any).getType(entry.filename);
       if (mimeType && mimeType.startsWith('image/')) {
         if (cover === null) {
@@ -269,7 +269,7 @@ export class Archive {
     const writer = this.getWriter();
     let coverData: Buffer | null = null;
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       if (!entry.directory) {
         const ext = path.extname(entry.filename);
         const base = path.basename(entry.filename, ext);
@@ -303,7 +303,7 @@ export class Archive {
 
     let foundEntry: ArchiveEntry | null = null;
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       const mimeType = (mime as any).getType(entry.filename);
       if (
         mimeType &&
@@ -331,11 +331,18 @@ export class Archive {
     if (this.dirty) await this.reload();
 
     const writer = this.getWriter();
-    const pairMap = {} as any;
-    const leftToRight = {} as any;
-    const rightToLeft = {} as any;
+    const pairMap = {} as {
+      [key: string]: {
+        leftName: string;
+        rightName: string;
+        leftImage: Buffer | null;
+        rightImage: Buffer | null;
+      };
+    };
+    const leftToRight = {} as { [key: string]: string };
+    const rightToLeft = {} as { [key: string]: string };
 
-    for (let pair of imagePairs) {
+    for (const pair of imagePairs) {
       const leftExt = path.extname(pair.leftImage).toLowerCase();
       const rightExt = path.extname(pair.rightImage).toLowerCase();
       if (leftExt !== rightExt) {
@@ -360,7 +367,7 @@ export class Archive {
       };
     }
 
-    for (let entry of await this.reader.entries()) {
+    for (const entry of await this.reader.entries()) {
       if (leftToRight[entry.filename]) {
         const rightName = leftToRight[entry.filename];
         let leftImageData = await entry.getData();
@@ -375,7 +382,7 @@ export class Archive {
       }
     }
 
-    for (let key in pairMap) {
+    for (const key in pairMap) {
       const pairData = pairMap[key];
       const leftExt = path.extname(pairData.leftName).toLowerCase();
       const rightExt = path.extname(pairData.rightName).toLowerCase();
@@ -442,10 +449,10 @@ export class Archive {
 
     let firstSplit = true;
 
-    for (let split of splits) {
+    for (const split of splits) {
       const writer = this.getWriter();
 
-      for (let filename of split.entries) {
+      for (const filename of split.entries) {
         const entry = entryMap[filename];
         if (!entry || !entry.getData) continue;
 
@@ -453,7 +460,7 @@ export class Archive {
       }
 
       if (firstSplit) {
-        for (let entry of nonImages) {
+        for (const entry of nonImages) {
           if (!entry || !entry.getData) continue;
           await writer.add(entry.filename, await entry.getData());
         }

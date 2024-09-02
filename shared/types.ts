@@ -70,7 +70,7 @@ export enum PageType {
 
 type MetadataEntry<T> = T | ConflictedMetadataEntry<T> | null;
 
-type ConflictedMetadataEntry<T> = {
+export type ConflictedMetadataEntry<T> = {
   conflict: true;
   values: T[];
 };

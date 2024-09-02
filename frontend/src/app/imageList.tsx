@@ -33,7 +33,7 @@ export function ImageList({
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (['INPUT', 'BUTTON'].includes((event.target as any).tagName)) {
+      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
         return;
       }
       const increment = event.shiftKey ? 2 : 1;
