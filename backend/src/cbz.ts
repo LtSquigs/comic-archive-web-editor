@@ -15,7 +15,7 @@ export class CBZWriter implements ArchiveWriter {
 
   constructor() {
     this.writer = new Uint8ArrayWriter();
-    this.zipWriter = new ZipWriter(this.writer);
+    this.zipWriter = new ZipWriter(this.writer, { bufferedWrite: true });
   }
   async add(path: string, data: Buffer) {
     const bw = new BlobWriter();
