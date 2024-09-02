@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { ActionState } from './types';
 import { Entry } from '../shared/types';
 
@@ -11,19 +11,34 @@ import {
 import { API } from './api';
 import { useToast } from '@/hooks/use-toast';
 
-export function CoverSelector({
-  files = [],
-  entries = [],
-}: {
-  files: string[];
-  entries: Entry[];
-}) {
+export const CoverSelector = forwardRef(function CoverSelector(
+  {
+    files = [],
+    entries = [],
+    disabled = false,
+  }: {
+    files: string[];
+    entries: Entry[];
+    disabled: boolean;
+  },
+  ref
+) {
   const [coverURL, setCoverURL] = useState('');
   const [editing, setEditing] = useState(false);
   const [coverIdx, setCoverIdx] = useState(0);
   const [coverStatus, setCoverStatus] = useState(ActionState.NONE);
   const { toast } = useToast();
-
+  useImperativeHandle(
+    ref,
+    () => {
+      return {
+        cancelEditing: async () => {
+          if (editing) setEditing(false);
+        },
+      };
+    },
+    [editing]
+  );
   useEffect(() => {
     if (files.length > 1) {
       setCoverURL('');
@@ -123,6 +138,7 @@ export function CoverSelector({
           <Button
             onClick={startEditing}
             className="absolute bottom-0 opacity-80 w-full"
+            disabled={disabled}
           >
             Change Cover
           </Button>
@@ -130,6 +146,5 @@ export function CoverSelector({
       )}
     </>
   );
-}
-
+});
 export default CoverSelector;

@@ -25,10 +25,7 @@ type TreeContextProps = {
   expendedItems: string[] | undefined;
   indicator: boolean;
   handleExpand: (id: string) => void;
-  selectItem: (
-    id: string,
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
-  ) => void;
+  selectItem: (id: string, shift: boolean, meta: boolean) => void;
   setExpendedItems?: React.Dispatch<React.SetStateAction<string[] | undefined>>;
   openIcon?: React.ReactNode;
   closeIcon?: React.ReactNode;
@@ -97,9 +94,9 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
     );
 
     const selectItem = useCallback(
-      (id: string, event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+      (id: string, shift: boolean, meta: boolean) => {
         if (multiSelect) {
-          if (event.shiftKey || event.ctrlKey || event.metaKey) {
+          if (shift || meta) {
             setSelectedId((prev) => {
               if (prev?.includes(id)) {
                 setLastSelectedId(undefined);
@@ -108,7 +105,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
 
               // If shift, and we are adding, check selectGroups to get more than one
               let newSelectedIds = [] as string[];
-              if (event.shiftKey && lastSelectedId && selectGroups) {
+              if (shift && lastSelectedId && selectGroups) {
                 let groupIds = prev?.includes(id) ? [] : [id];
                 for (const group of selectGroups) {
                   if (group.includes(id) && group.includes(lastSelectedId)) {
@@ -412,7 +409,15 @@ const File = forwardRef<
             isSelectable ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed',
             className
           )}
-          onClick={(event) => selectItem(value, event)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              selectItem(value, event.shiftKey, event.ctrlKey || event.metaKey);
+              event.preventDefault();
+            }
+          }}
+          onClick={(event) =>
+            selectItem(value, event.shiftKey, event.ctrlKey || event.metaKey)
+          }
         >
           {fileIcon ?? <FileIcon className="h-4 w-4" />}
           {children}

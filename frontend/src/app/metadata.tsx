@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActionState } from './types';
 
 import {
@@ -210,6 +210,7 @@ export function MetadataEditor({
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
   const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const { toast } = useToast();
+  const coverRef = useRef<any>(null);
 
   useEffect(() => {
     const noPages = { ...metadata };
@@ -233,6 +234,7 @@ export function MetadataEditor({
     });
 
     setMetadataStatus(ActionState.INPROGRESS);
+    if (coverRef.current) coverRef.current.cancelEditing();
     const setData = await API.setMetadata(currentMetadata as Metadata);
     setMetadataStatus(ActionState.NONE);
 
@@ -422,7 +424,12 @@ export function MetadataEditor({
     <>
       <div className="mt-4 p-4 grid grid-cols-11 gap-4 content-start">
         <div className="col-span-3 row-span-5 relative">
-          <CoverSelector files={files} entries={entries}></CoverSelector>
+          <CoverSelector
+            disabled={metadataStatus === ActionState.INPROGRESS}
+            files={files}
+            entries={entries}
+            ref={coverRef}
+          ></CoverSelector>
         </div>
         {renderField('title', 2)}
         {renderField('number', 1)}

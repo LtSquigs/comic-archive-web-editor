@@ -264,7 +264,13 @@ export function EntriesEditor({
     <div className="h-fit mt-4 ml-1">
       <div className="flex flex-col gap-2 items-start">
         <div className="flex">
-          <Button onClick={onRemoveExif}>
+          <Button
+            disabled={
+              renameStatus === ActionState.INPROGRESS ||
+              flattenStatus === ActionState.INPROGRESS
+            }
+            onClick={onRemoveExif}
+          >
             {exifStatus === ActionState.INPROGRESS ? (
               <UpdateIcon className="mr-1 animate-spin" />
             ) : null}{' '}
@@ -285,7 +291,13 @@ export function EntriesEditor({
           </TooltipProvider>
         </div>
         <div className="flex">
-          <Button onClick={onFlattenEntries}>
+          <Button
+            disabled={
+              renameStatus === ActionState.INPROGRESS ||
+              exifStatus === ActionState.INPROGRESS
+            }
+            onClick={onFlattenEntries}
+          >
             {flattenStatus === ActionState.INPROGRESS ? (
               <UpdateIcon className="mr-1 animate-spin" />
             ) : null}{' '}
@@ -399,7 +411,13 @@ export function EntriesEditor({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Button onClick={sendRemap}>
+                <Button
+                  disabled={
+                    flattenStatus === ActionState.INPROGRESS ||
+                    exifStatus === ActionState.INPROGRESS
+                  }
+                  onClick={sendRemap}
+                >
                   {renameStatus === ActionState.INPROGRESS ? (
                     <UpdateIcon className="mr-1 animate-spin" />
                   ) : null}{' '}
