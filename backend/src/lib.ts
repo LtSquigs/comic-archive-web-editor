@@ -3,9 +3,11 @@ import { Readable } from 'stream';
 import { CBZReader, CBZWriter } from './cbz.js';
 import path from 'path';
 import fs from 'fs';
+import mime from 'mime';
 
 export const SERVER_HOST = process.env.HOST ?? 'localhost';
 export const SERVER_PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+export const STATIC_PATH = path.join(process.cwd(), './public');
 export const SERVER_DIR = path.resolve(process.env.ARCHIVE_DIR ?? '/archives');
 export const ALLOWED_EXTENSIONS = CBZReader.extensions;
 export const REGISTERED_READERS = [CBZReader];
@@ -35,6 +37,31 @@ export const removeExif = (buf: Buffer): Promise<Buffer> => {
 function escapeRegExp(string: string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
+
+export const getStaticFile = async (
+  url: string
+): Promise<
+  { found: false } | { found: true; mimeType: string; stream: fs.ReadStream }
+> => {
+  const paths = [STATIC_PATH, url];
+  if (url.endsWith('/')) paths.push('index.html');
+
+  const filePath = path.join(...paths);
+  // Guard against trying to get out of static path
+  const pathTraversal = !filePath.startsWith(STATIC_PATH);
+  const exists = await fs.promises.access(filePath).then(
+    () => true,
+    () => false
+  );
+  const found = !pathTraversal && exists;
+
+  if (!found) {
+    return { found: false };
+  }
+  const mimeType = (mime as any).getType(path.basename(filePath));
+  const stream = fs.createReadStream(filePath);
+  return { found: true, mimeType, stream };
+};
 
 export const getArchivesRelative = async (relativeDir: string) => {
   const baseDir = path.join(SERVER_DIR, relativeDir);

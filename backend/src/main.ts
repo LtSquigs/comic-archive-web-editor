@@ -1,10 +1,10 @@
-import express from 'express';
 import { Archive } from './archive.js';
 import fs from 'fs';
+import http from 'http';
 import {
   getArchivesRelative,
+  getStaticFile,
   resolveFiles,
-  SERVER_DIR,
   SERVER_HOST,
   SERVER_PORT,
 } from './lib.js';
@@ -16,418 +16,464 @@ import {
   MetadataMap,
   Split,
 } from './shared/types.js';
+import { URLSearchParams } from 'url';
+import { Readable } from 'stream';
+import { RouteHandlers } from './types.js';
 
-const app = express();
-app.use(express.json());
-app.use(express.static('public'));
-
-const getFiles = (req: express.Request) => {
-  let files = (req.query['files'] || []) as string | string[];
-
-  if (typeof files === 'string') {
-    files = [files];
-  }
-
-  return resolveFiles(files);
+const getFiles = (req: URLSearchParams) => {
+  return resolveFiles(req.getAll('files'));
 };
 
-const getFileFromBody = (req: express.Request) => {
-  let files = (req.body.files as string | string[]) || [];
-
-  if (typeof files === 'string') {
-    files = [files];
-  }
-
-  return resolveFiles(files);
+const getFileFromBody = (body: any) => {
+  return resolveFiles(body.files || []);
 };
 
-app.get('/archive/list', async (req, res) => {
-  const prefix = (req.query['prefix'] || '') as string;
-  const files = await getArchivesRelative(prefix);
-  res.json({ paths: files });
-});
+const routes: { [key: string]: RouteHandlers } = {
+  '/archive/list': async (params) => {
+    const prefix = (params.get('prefix') || '') as string;
+    const files = await getArchivesRelative(prefix);
+    return { type: 'json', body: { paths: files } };
+  },
+  '/archive/image/join': {
+    POST: async (params, body, signal) => {
+      const files = getFiles(params);
+      const pairs: JoinPair[] = body || [];
 
-app.post('/archive/image/join', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+      const archive = new Archive(files[0].resolved, signal);
+      await archive.load();
 
-  const files = getFiles(req);
-  const pairs: JoinPair[] = req.body || [];
+      try {
+        await archive.combineImages(pairs);
+      } finally {
+        await archive.close();
+      }
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/image': async (params, body, signal) => {
+    const files = getFiles(params);
 
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-
-  try {
-    await archive.combineImages(pairs);
-  } finally {
-    await archive.close();
-  }
-  res.json({ success: true });
-});
-
-app.get('/archive/image', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const files = getFiles(req);
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  const entry = req.query['entry'] as string;
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-
-  try {
-    let [img, mime] = await archive.getImageByName(entry);
-
-    if (img === null) {
-      res.end();
-      return;
+    if (files.length > 1) {
+      throw new Error('TOO MANY FILES');
     }
-    res.set('Content-Type', mime || undefined);
-    res.send(img);
-  } finally {
-    await archive.close();
-  }
-});
 
-app.get('/archive/cover', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
+    const entry = params.get('entry') || '';
 
-  const files = getFiles(req);
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-
-  try {
-    let [img, mime] = await archive.getCover();
-
-    if (img === null) {
-      res.end();
-      return;
-    }
-    res.set('Content-Type', mime || undefined);
-    res.send(img);
-  } finally {
-    await archive.close();
-  }
-});
-
-app.post('/archive/cover', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const files = getFiles(req);
-  const newCover: string = (req.body || {}).entry;
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  if (!newCover) {
-    throw new Error('No Cover Selected');
-  }
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-  try {
-    await archive.setCover(newCover);
-  } finally {
-    await archive.close();
-  }
-
-  res.json({ success: true });
-});
-
-app.get('/archive/entries', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const files = getFiles(req);
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-  try {
-    res.json({ entries: await archive.entries() });
-  } finally {
-    await archive.close();
-  }
-});
-
-app.post('/archive/entries', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const files = getFiles(req);
-  const nameMap: EntryMap = req.body || {};
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-  try {
-    await archive.renameEntries(nameMap);
-  } finally {
-    await archive.close();
-  }
-
-  res.json({ success: true });
-});
-
-app.post('/archive/split', async (req, res) => {
-  const ac = new AbortController();
-
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const files = getFiles(req);
-  const splits: Split[] = req.body || [];
-
-  if (files.length > 1) {
-    throw new Error('TOO MANY FILES');
-  }
-
-  if (splits.length <= 0) {
-    return res.json({ success: true });
-  }
-
-  const archive = new Archive(files[0].resolved, ac.signal);
-  await archive.load();
-  try {
-    await archive.split(splits);
-  } finally {
-    await archive.close();
-  }
-
-  res.json({ success: true });
-});
-
-app.post('/archive/flatten', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  for (const { resolved } of getFiles(req)) {
-    const archive = new Archive(resolved, ac.signal);
+    const archive = new Archive(files[0].resolved, signal);
     await archive.load();
+
     try {
-      await archive.flatten();
-    } finally {
-      await archive.close();
-    }
-  }
+      let [img, mime] = await archive.getImageByName(entry);
 
-  res.json({ success: true });
-});
-
-app.post('/archive/removeExif', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  for (const { resolved } of getFiles(req)) {
-    const archive = new Archive(resolved, ac.signal);
-    await archive.load();
-    try {
-      await archive.removeExif();
-    } finally {
-      await archive.close();
-    }
-  }
-
-  res.json({ success: true });
-});
-
-app.post('/archive/delete', async (req, res) => {
-  for (const { resolved } of getFiles(req)) {
-    fs.unlinkSync(resolved);
-  }
-
-  res.json({ success: true });
-});
-
-app.get('/archive/metadata', async (req, res) => {
-  const ac = new AbortController();
-
-  const files = getFiles(req);
-  let terminated = false;
-
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-    terminated = true;
-  });
-
-  let idx = 0;
-  let allMetadata: APIMetadata | undefined = undefined;
-
-  // This loop is done with setImmediate because with a large enough
-  // fileset of large files, it will DOS the server otherwise.
-  const loop = async () => {
-    if (terminated) {
-      res.end();
-      return;
-    }
-    if (idx >= files.length) {
-      if (files.length > 1 && allMetadata !== undefined) {
-        delete allMetadata['pages'];
+      if (img === null) {
+        return null;
       }
 
-      res.json({ metadata: allMetadata });
-      return;
+      return { type: 'raw', mime: mime || '', body: img };
+    } finally {
+      await archive.close();
     }
-    const file = files[idx];
-    const archive = new Archive(file.resolved);
-    try {
+  },
+  '/archive/cover': {
+    GET: async (params, body, signal) => {
+      const files = getFiles(params);
+
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+
+      const archive = new Archive(files[0].resolved, signal);
       await archive.load();
-      const metadata: Metadata = (await archive.getMetadata()).copyOut();
-      if (allMetadata === undefined) {
-        allMetadata = metadata;
-      } else {
-        for (const prop in metadata) {
-          let typedProp = prop as keyof Metadata;
-          const allValue = allMetadata[typedProp];
-          const metaValue = metadata[typedProp];
-          if (metaValue !== allValue && prop !== 'pages') {
-            if (
-              allValue !== null &&
-              typeof allValue === 'object' &&
-              'conflict' in allValue
-            ) {
-              if (metaValue !== null && metadata !== undefined) {
-                (allValue.values as any[]).push(metaValue);
-              }
-              continue;
-            }
-            (allMetadata as any)[typedProp] = {
-              conflict: true,
-              values: [allMetadata[typedProp], metadata[typedProp]].filter(
-                (val) => val !== null && val !== undefined
-              ),
-            };
-          } else {
-            (allMetadata as any)[typedProp] = metadata[typedProp];
-          }
+
+      try {
+        let [img, mime] = await archive.getCover();
+
+        if (img === null) {
+          return null;
+        }
+        return { type: 'raw', mime: mime || '', body: img };
+      } finally {
+        await archive.close();
+      }
+    },
+    POST: async (params, body, signal) => {
+      const files = getFiles(params);
+      const newCover: string = (body || {}).entry;
+
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+
+      if (!newCover) {
+        throw new Error('No Cover Selected');
+      }
+
+      const archive = new Archive(files[0].resolved, signal);
+      await archive.load();
+      try {
+        await archive.setCover(newCover);
+      } finally {
+        await archive.close();
+      }
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/entries': {
+    GET: async (params, body, signal) => {
+      const files = getFiles(params);
+
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+
+      const archive = new Archive(files[0].resolved, signal);
+      await archive.load();
+      try {
+        return { type: 'json', body: { entries: await archive.entries() } };
+      } finally {
+        await archive.close();
+      }
+    },
+    POST: async (params, body, signal) => {
+      const files = getFiles(params);
+      const nameMap: EntryMap = body || {};
+
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+
+      const archive = new Archive(files[0].resolved, signal);
+      await archive.load();
+      try {
+        await archive.renameEntries(nameMap);
+      } finally {
+        await archive.close();
+      }
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/split': {
+    POST: async (params, body, signal) => {
+      const files = getFiles(params);
+      const splits: Split[] = body || [];
+
+      if (files.length > 1) {
+        throw new Error('TOO MANY FILES');
+      }
+
+      if (splits.length <= 0) {
+        return { type: 'json', body: { success: true } };
+      }
+
+      const archive = new Archive(files[0].resolved, signal);
+      await archive.load();
+      try {
+        await archive.split(splits);
+      } finally {
+        await archive.close();
+      }
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/flatten': {
+    POST: async (params, body, signal) => {
+      for (const { resolved } of getFiles(params)) {
+        const archive = new Archive(resolved, signal);
+        await archive.load();
+        try {
+          await archive.flatten();
+        } finally {
+          await archive.close();
         }
       }
-    } catch (e: any) {
-      res.json({ error: e, errorStr: e.message });
-      terminated = true;
-    } finally {
-      archive.close();
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/removeExif': {
+    POST: async (params, body, signal) => {
+      for (const { resolved } of getFiles(params)) {
+        const archive = new Archive(resolved, signal);
+        await archive.load();
+        try {
+          await archive.removeExif();
+        } finally {
+          await archive.close();
+        }
+      }
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/delete': {
+    POST: async (params, body, signal) => {
+      for (const { resolved } of getFiles(params)) {
+        fs.unlinkSync(resolved);
+      }
+
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/metadata': {
+    GET: async (params, body, signal) => {
+      return new Promise((resolve, reject) => {
+        const files = getFiles(params);
+        let idx = 0;
+        let allMetadata: APIMetadata | undefined = undefined;
+
+        // This loop is done with setImmediate because with a large enough
+        // fileset of large files, it will DOS the server otherwise.
+        const loop = async () => {
+          if (idx >= files.length) {
+            if (files.length > 1 && allMetadata !== undefined) {
+              delete allMetadata['pages'];
+            }
+
+            resolve({ type: 'json', body: { metadata: allMetadata } });
+            return;
+          }
+          const file = files[idx];
+          const archive = new Archive(file.resolved);
+          try {
+            await archive.load();
+            const metadata: Metadata = (await archive.getMetadata()).copyOut();
+            if (allMetadata === undefined) {
+              allMetadata = metadata;
+            } else {
+              for (const prop in metadata) {
+                let typedProp = prop as keyof Metadata;
+                const allValue = allMetadata[typedProp];
+                const metaValue = metadata[typedProp];
+                if (metaValue !== allValue && prop !== 'pages') {
+                  if (
+                    allValue !== null &&
+                    typeof allValue === 'object' &&
+                    'conflict' in allValue
+                  ) {
+                    if (metaValue !== null && metadata !== undefined) {
+                      (allValue.values as any[]).push(metaValue);
+                    }
+                    continue;
+                  }
+                  (allMetadata as any)[typedProp] = {
+                    conflict: true,
+                    values: [
+                      allMetadata[typedProp],
+                      metadata[typedProp],
+                    ].filter((val) => val !== null && val !== undefined),
+                  };
+                } else {
+                  (allMetadata as any)[typedProp] = metadata[typedProp];
+                }
+              }
+            }
+          } catch (e: any) {
+            reject(e);
+          } finally {
+            archive.close();
+          }
+
+          idx = idx + 1;
+          setImmediate(loop);
+        };
+
+        loop();
+      });
+    },
+    POST: async (params, body, signal) => {
+      const newMetadata: Metadata = body || {};
+
+      for (const file of getFiles(params)) {
+        const archive = new Archive(file.resolved, signal);
+        await archive.load();
+        try {
+          const oldMetadata = (await archive.getMetadata()).copyOut();
+
+          for (const prop in newMetadata) {
+            if (newMetadata[prop as keyof Metadata] === undefined) {
+              delete newMetadata[prop as keyof Metadata];
+            }
+          }
+
+          await archive.setMetadata({ ...oldMetadata, ...newMetadata });
+        } finally {
+          await archive.close();
+        }
+      }
+      return { type: 'json', body: { success: true } };
+    },
+  },
+  '/archive/metadata/bulk': {
+    POST: async (params, body, signal) => {
+      const metadata: MetadataMap = (body || {}).metadata || {};
+
+      for (const { file, resolved } of getFileFromBody(body)) {
+        const archive = new Archive(resolved, signal);
+        await archive.load();
+        try {
+          const oldMetadata = (await archive.getMetadata()).copyOut();
+          const newMetadata = metadata[file];
+
+          for (const prop in newMetadata) {
+            if (newMetadata[prop as keyof Metadata] === undefined) {
+              delete newMetadata[prop as keyof Metadata];
+            }
+          }
+
+          await archive.setMetadata({ ...oldMetadata, ...newMetadata });
+        } finally {
+          await archive.close();
+        }
+      }
+      return { type: 'json', body: { success: true } };
+    },
+  },
+};
+
+const serverFunc = async (
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  signal: AbortSignal
+) => {
+  if (!req.url || !req.method) {
+    if (!res.writableEnded) {
+      res.writeHead(500);
+      res.end();
+    }
+    return;
+  }
+  const url = new URL(req.url, `http://${SERVER_HOST}:${SERVER_PORT}`);
+  const path = url.pathname;
+  const method = req.method;
+
+  if (
+    path[path.length - 1] === '/' &&
+    path.slice(0, path.length - 1) in routes
+  ) {
+    // send 301 redirect to non /
+    if (!res.writableEnded) {
+      res.writeHead(301, {
+        Location: path.slice(0, path.length - 1),
+      });
+      res.end();
     }
 
-    idx = idx + 1;
-    setImmediate(loop);
+    return;
+  }
+
+  if (path in routes) {
+    const handlers = routes[path];
+    let response = null;
+    let body = {};
+
+    if (
+      req.headers &&
+      req.headers['content-type'] === 'application/json' &&
+      method === 'POST'
+    ) {
+      const readBodyPromise = new Promise<any>((resolve, reject) => {
+        let body = '';
+        req.on('readable', function () {
+          const data = req.read();
+          body += data ?? '';
+        });
+        req.on('end', function () {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+        req.on('error', (err) => {
+          reject(err);
+        });
+      });
+
+      body = await readBodyPromise;
+    }
+    if (typeof handlers === 'function' && method === 'GET') {
+      response = await handlers(url.searchParams, body, signal);
+    } else if (typeof handlers === 'object' && method in handlers) {
+      response = await (handlers as any)[method](
+        url.searchParams,
+        body,
+        signal
+      );
+    }
+
+    if (response && response.type === 'json') {
+      if (!res.writableEnded) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(response.body));
+      }
+      return;
+    } else if (response && response.type === 'raw') {
+      if (!res.writableEnded) {
+        res.writeHead(200, { 'Content-Type': response.mime });
+        Readable.from(response.body).pipe(res);
+      }
+      return;
+    }
+
+    if (!res.writableEnded) {
+      res.writeHead(404);
+      res.end();
+    }
+    return;
+  }
+
+  const staticFile = await getStaticFile(path);
+  if (!staticFile.found) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': staticFile.mimeType });
+  staticFile.stream.pipe(res);
+};
+
+const server = http.createServer(async (req, res) => {
+  const abortController = new AbortController();
+
+  const abortListener = () => {
+    let probablyAborted = !res.writableEnded;
+
+    if (probablyAborted) {
+      if (!res.writableEnded) res.end();
+      abortController.abort();
+    }
+
+    req.socket.off('close', abortListener);
   };
 
-  loop();
-});
+  req.socket.on('close', abortListener);
 
-app.post('/archive/metadata', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const newMetadata: Metadata = req.body || {};
-
-  for (const file of getFiles(req)) {
-    const archive = new Archive(file.resolved, ac.signal);
-    await archive.load();
-    try {
-      const oldMetadata = (await archive.getMetadata()).copyOut();
-
-      for (const prop in newMetadata) {
-        if (newMetadata[prop as keyof Metadata] === undefined) {
-          delete newMetadata[prop as keyof Metadata];
-        }
-      }
-
-      await archive.setMetadata({ ...oldMetadata, ...newMetadata });
-    } finally {
-      await archive.close();
+  try {
+    await serverFunc(req, res, abortController.signal);
+  } catch (error) {
+    console.log(error);
+    if (!res.writableEnded) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: true,
+          errorStr:
+            error && typeof error === 'object' && 'message' in error
+              ? error.message
+              : `${error}`,
+        })
+      );
     }
+  } finally {
+    req.socket.off('close', abortListener);
   }
-  res.json({ success: true });
 });
 
-app.post('/archive/metadata/bulk', async (req, res) => {
-  const ac = new AbortController();
-  req.once('close', () => {
-    if (!req.complete) ac.abort();
-  });
-
-  const metadata: MetadataMap = req.body.metadata || {};
-
-  for (const { file, resolved } of getFileFromBody(req)) {
-    const archive = new Archive(resolved, ac.signal);
-    await archive.load();
-    try {
-      const oldMetadata = (await archive.getMetadata()).copyOut();
-      const newMetadata = metadata[file];
-
-      for (const prop in newMetadata) {
-        if (newMetadata[prop as keyof Metadata] === undefined) {
-          delete newMetadata[prop as keyof Metadata];
-        }
-      }
-
-      await archive.setMetadata({ ...oldMetadata, ...newMetadata });
-    } finally {
-      await archive.close();
-    }
-  }
-  res.json({ success: true });
-});
-
-app.use(
-  (
-    err: Error,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    if (res.headersSent) {
-      return next(err);
-    }
-    console.log(err);
-    res.status(500).json({ error: err.message });
-  }
-);
-
-app.listen(SERVER_PORT, SERVER_HOST, () => {
-  console.log(`[ ready ] http://${SERVER_HOST}:${SERVER_PORT}`);
-  console.log(`Serving Manga From ${SERVER_DIR}`);
-});
+server.listen(SERVER_PORT, SERVER_HOST);
