@@ -77,12 +77,17 @@ export function App() {
     })();
   }, [selectedFiles, selectedTab]);
 
-  useEffect(() => {
-    setSelectedTab('metadata');
-  }, [selectedFiles]);
-
   const handleUpdateSelected = (ids: string[]) => {
+    // If the selected files have not actually changed, we don't update
+    // the state and risk triggering a re-render
+    if (
+      ids.length === selectedFiles.length &&
+      ids.every((value, index) => value === selectedFiles[index])
+    ) {
+      return;
+    }
     setSelectedFiles(ids);
+    setSelectedTab('metadata');
   };
 
   const refreshEntries = async () => {
@@ -103,6 +108,7 @@ export function App() {
     setDeleteStatus(ActionState.NONE);
     setSelectedFiles(selectedFile ? [selectedFile] : []);
     setDefaultSelectedFile(selectedFile);
+    setSelectedTab('metadata');
     setEntries([]);
     setMetadata({});
   };

@@ -72,7 +72,7 @@ export const FileList = forwardRef(function FileList(
     () => {
       return {
         refresh: async () => {
-          await refreshItems();
+          await refreshItems(false);
         },
       };
     },
@@ -86,7 +86,7 @@ export const FileList = forwardRef(function FileList(
     })();
   }, []);
 
-  const refreshItems = async function () {
+  const refreshItems = async function (notif: boolean = true) {
     setRefreshing(true);
 
     const items = await getFileTree();
@@ -103,11 +103,13 @@ export const FileList = forwardRef(function FileList(
     setFiles(loadedItems);
     setRefreshing(false);
 
-    toast({
-      title: 'Task Finished',
-      variant: 'default',
-      description: 'Successfully reloaded file list.',
-    });
+    if (notif) {
+      toast({
+        title: 'Task Finished',
+        variant: 'default',
+        description: 'Successfully reloaded file list.',
+      });
+    }
   };
 
   const loadSubfolders = async (
@@ -239,7 +241,9 @@ export const FileList = forwardRef(function FileList(
         ) : (
           <ReloadIcon
             className="ml-2 cursor-pointer"
-            onClick={refreshItems}
+            onClick={async () => {
+              await refreshItems();
+            }}
           ></ReloadIcon>
         )}
       </h6>
