@@ -11,7 +11,7 @@ export interface ArchiveReader {
 
 export interface ArchiveWriter {
   add(path: string, data: Buffer): Promise<void>;
-  write(): Promise<Buffer>;
+  write(file: string): Promise<void>;
 }
 
 type routeResponse =

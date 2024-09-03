@@ -58,7 +58,7 @@ export const getStaticFile = async (
   if (!found) {
     return { found: false };
   }
-  const mimeType = (mime as any).getType(path.basename(filePath));
+  const mimeType = mime.getType(path.basename(filePath)) || '';
   const stream = fs.createReadStream(filePath);
   return { found: true, mimeType, stream };
 };

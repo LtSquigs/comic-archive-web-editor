@@ -102,7 +102,7 @@ export class Archive {
       const ext = path.extname(entry.filename);
       const baseName = path.basename(entry.filename, ext);
       const dir = path.dirname(entry.filename);
-      const mimeType = (mime as any).getType(entry.filename);
+      const mimeType = mime.getType(entry.filename);
       let isImage = false;
       if (mimeType && mimeType.startsWith('image/')) {
         isImage = true;
@@ -148,7 +148,8 @@ export class Archive {
       }
     }
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Retrives the metadata object contained in an archive
@@ -189,7 +190,8 @@ export class Archive {
 
     writer.add('ComicInfo.xml', Buffer.from(info.toXML(), 'utf-8'));
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Renames entries in the archive according to the map given
@@ -208,7 +210,8 @@ export class Archive {
       }
     }
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Removes EXIF data from images detected in archive
@@ -222,7 +225,7 @@ export class Archive {
     for (const entry of await this.reader.entries()) {
       if (!entry.directory) {
         let data = await entry.getData();
-        const mimeType = (mime as any).getType(entry.filename);
+        const mimeType = mime.getType(entry.filename);
         if (mimeType && mimeType.startsWith('image/')) {
           data = await removeExif(data);
         }
@@ -231,7 +234,8 @@ export class Archive {
       }
     }
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Retrieves the cover image from the archive if it exists.
@@ -248,7 +252,7 @@ export class Archive {
     let cover = null;
 
     for (const entry of entries) {
-      const mimeType = (mime as any).getType(entry.filename);
+      const mimeType = mime.getType(entry.filename);
       if (mimeType && mimeType.startsWith('image/')) {
         if (cover === null) {
           cover = entry;
@@ -268,7 +272,7 @@ export class Archive {
       return [null, null];
     }
 
-    return [await cover.getData(), (mime as any).getType(cover.filename)];
+    return [await cover.getData(), mime.getType(cover.filename)];
   }
 
   // Copies the entry indicated by coverFileName to the the cover file
@@ -303,7 +307,8 @@ export class Archive {
       writer.add(`cover${ext}`, coverData);
     }
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Retrieves the image data of an entry file by name
@@ -317,7 +322,7 @@ export class Archive {
     let foundEntry: ArchiveEntry | null = null;
 
     for (const entry of await this.reader.entries()) {
-      const mimeType = (mime as any).getType(entry.filename);
+      const mimeType = mime.getType(entry.filename);
       if (
         mimeType &&
         mimeType.startsWith('image/') &&
@@ -331,10 +336,7 @@ export class Archive {
       return [null, null];
     }
 
-    return [
-      await foundEntry.getData(),
-      (mime as any).getType(foundEntry.filename),
-    ];
+    return [await foundEntry.getData(), mime.getType(foundEntry.filename)];
   }
 
   // Combines images together in archive by the JoinPair's provided
@@ -434,7 +436,8 @@ export class Archive {
       }
     }
 
-    this.save(await writer.write());
+    await writer.write(this.file);
+    this.markDirty();
   }
 
   // Splits an archive into multiple different archives based off
@@ -454,7 +457,7 @@ export class Archive {
         continue;
       }
 
-      const mimeType = (mime as any).getType(entry.filename);
+      const mimeType = mime.getType(entry.filename);
       if (!mimeType || !mimeType.startsWith('image/')) {
         nonImages.push(entry);
       } else {
@@ -483,8 +486,9 @@ export class Archive {
 
       firstSplit = false;
 
-      const data = await writer.write();
-      fs.writeFileSync(path.join(SERVER_DIR, split.filename), data);
+      await writer.write(path.join(SERVER_DIR, split.filename));
+      // const data = await writer.write();
+      // fs.writeFileSync(path.join(SERVER_DIR, split.filename), data);
     }
   }
 
@@ -505,9 +509,7 @@ export class Archive {
   }
 
   // Saves file to disk and marks data as dirty for future reads
-  async save(data: Buffer): Promise<void> {
-    if (this.signal?.aborted) throw new Error('Request Aborted.');
-    fs.writeFileSync(this.file, data);
+  async markDirty(): Promise<void> {
     this.dirty = true;
   }
 }

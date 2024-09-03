@@ -5,15 +5,18 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@zip.js/zip.js": "^2.7.51",
+    "archiver": "^7.0.1",
     "exif-be-gone": "^1.5.1",
     "glob": "^10.3.10",
     "join-images": "^1.1.5",
     "mime": "^3.0.0",
+    "node-stream-zip": "^1.15.0",
     "tslib": "^2.3.0",
     "xml-js-graphite": "^1.7.1"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.2",
+    "@types/mime": "^3.0.4",
     "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^6.13.2",
     "@typescript-eslint/parser": "^6.13.2",
