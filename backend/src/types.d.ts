@@ -1,7 +1,9 @@
+import { Readable } from 'stream';
+
 export type ArchiveEntry = {
   filename: string;
   directory: boolean;
-  getData: () => Promise<Buffer>;
+  getData: () => Promise<Readable>;
 };
 
 export interface ArchiveReader {
@@ -10,7 +12,7 @@ export interface ArchiveReader {
 }
 
 export interface ArchiveWriter {
-  add(path: string, data: Buffer): Promise<void>;
+  add(path: string, stream: Readable): Promise<void>;
   write(file: string): Promise<void>;
 }
 
@@ -20,9 +22,9 @@ type routeResponse =
       body: object;
     }
   | {
-      type: 'raw';
+      type: 'stream';
       mime: string;
-      body: Buffer;
+      body: Readable;
     }
   | null;
 

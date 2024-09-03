@@ -13,10 +13,27 @@ export const ALLOWED_EXTENSIONS = CBZReader.extensions;
 export const REGISTERED_READERS = [CBZReader];
 export const REGISTERED_WRITERS = [CBZWriter];
 
-export const removeExif = (buf: Buffer): Promise<Buffer> => {
+export const readBuffer = (readable: Readable): Promise<Buffer> => {
+  return new Promise(async (resolve, reject) => {
+    const chunks: any[] = [];
+
+    readable.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    readable.on('end', async () => {
+      resolve(Buffer.concat(chunks));
+    });
+
+    readable.on('error', (err: any) => {
+      reject(err);
+    });
+  });
+};
+
+export const removeExif = (readable: Readable): Promise<Buffer> => {
   return new Promise(async (resolve, reject) => {
     const transformer = new (ExifTransformer as any)();
-    const readable = Readable.from(buf);
     const chunks: any[] = [];
 
     readable.pipe(transformer);

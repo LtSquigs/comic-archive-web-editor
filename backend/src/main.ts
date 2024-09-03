@@ -72,7 +72,7 @@ const routes: { [key: string]: RouteHandlers } = {
         return null;
       }
 
-      return { type: 'raw', mime: mime || '', body: img };
+      return { type: 'stream', mime: mime || '', body: img };
     } finally {
       await archive.close();
     }
@@ -94,7 +94,7 @@ const routes: { [key: string]: RouteHandlers } = {
         if (img === null) {
           return null;
         }
-        return { type: 'raw', mime: mime || '', body: img };
+        return { type: 'stream', mime: mime || '', body: img };
       } finally {
         await archive.close();
       }
@@ -276,7 +276,7 @@ const routes: { [key: string]: RouteHandlers } = {
           } catch (e: any) {
             reject(e);
           } finally {
-            archive.close();
+            await archive.close();
           }
 
           idx = idx + 1;
@@ -413,10 +413,10 @@ const serverFunc = async (
         res.end(JSON.stringify(response.body));
       }
       return;
-    } else if (response && response.type === 'raw') {
+    } else if (response && response.type === 'stream') {
       if (!res.writableEnded) {
         res.writeHead(200, { 'Content-Type': response.mime });
-        Readable.from(response.body).pipe(res);
+        response.body.pipe(res);
       }
       return;
     }
@@ -459,6 +459,7 @@ const server = http.createServer(async (req, res) => {
     await serverFunc(req, res, abortController.signal);
   } catch (error) {
     console.log(error);
+    abortController.abort();
     if (!res.writableEnded) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(

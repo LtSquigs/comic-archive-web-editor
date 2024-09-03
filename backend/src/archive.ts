@@ -5,12 +5,14 @@ import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
 import {
+  readBuffer,
   REGISTERED_READERS,
   REGISTERED_WRITERS,
   removeExif,
   SERVER_DIR,
 } from './lib.js';
 import { Entry, EntryMap, JoinPair, Split } from './shared/types.js';
+import { Readable } from 'stream';
 
 // Very basic cache that just keeps the last opened CBZ read in memory
 // between requests. The usual use case is to get many requests for the
@@ -164,7 +166,7 @@ export class Archive {
 
       if (name.match(nameRegex)) {
         const data = await entry.getData();
-        return ComicInfo.fromXML(data.toString());
+        return ComicInfo.fromXML((await readBuffer(data)).toString());
       }
     }
 
@@ -188,7 +190,10 @@ export class Archive {
       }
     }
 
-    writer.add('ComicInfo.xml', Buffer.from(info.toXML(), 'utf-8'));
+    writer.add(
+      'ComicInfo.xml',
+      Readable.from(Buffer.from(info.toXML(), 'utf-8'))
+    );
 
     await writer.write(this.file);
     this.markDirty();
@@ -227,10 +232,10 @@ export class Archive {
         let data = await entry.getData();
         const mimeType = mime.getType(entry.filename);
         if (mimeType && mimeType.startsWith('image/')) {
-          data = await removeExif(data);
+          data = Readable.from(await removeExif(data));
         }
 
-        await writer.add(entry.filename, data);
+        await writer.add(entry.filename, await Promise.resolve(data));
       }
     }
 
@@ -240,7 +245,7 @@ export class Archive {
 
   // Retrieves the cover image from the archive if it exists.
   // Otherwise it returns the first image sorted as the cover.
-  async getCover(): Promise<[Buffer | null, string | null]> {
+  async getCover(): Promise<[Readable | null, string | null]> {
     if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
@@ -283,7 +288,7 @@ export class Archive {
     if (this.dirty) await this.reload();
 
     const writer = this.getWriter();
-    let coverData: Buffer | null = null;
+    let coverData: Readable | null = null;
 
     for (const entry of await this.reader.entries()) {
       if (!entry.directory) {
@@ -293,11 +298,10 @@ export class Archive {
           continue;
         }
 
-        const data = await entry.getData();
-        await writer.add(entry.filename, data);
+        await writer.add(entry.filename, await entry.getData());
 
         if (coverFileName === entry.filename) {
-          coverData = data;
+          coverData = await entry.getData();
         }
       }
     }
@@ -314,7 +318,7 @@ export class Archive {
   // Retrieves the image data of an entry file by name
   async getImageByName(
     targetEntry: string
-  ): Promise<[Buffer | null, string | null]> {
+  ): Promise<[Readable | null, string | null]> {
     if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
@@ -351,8 +355,8 @@ export class Archive {
       [key: string]: {
         leftName: string;
         rightName: string;
-        leftImage: Buffer | null;
-        rightImage: Buffer | null;
+        leftImage: Readable | null;
+        rightImage: Readable | null;
       };
     };
     const leftToRight = {} as { [key: string]: string };
@@ -386,15 +390,14 @@ export class Archive {
     for (const entry of await this.reader.entries()) {
       if (leftToRight[entry.filename]) {
         const rightName = leftToRight[entry.filename];
-        let leftImageData = await entry.getData();
-        pairMap[`${entry.filename}-${rightName}`].leftImage = leftImageData;
+        pairMap[`${entry.filename}-${rightName}`].leftImage =
+          await entry.getData();
       } else if (rightToLeft[entry.filename]) {
         const leftName = rightToLeft[entry.filename];
-        let rightImageData = await entry.getData();
-        pairMap[`${leftName}-${entry.filename}`].rightImage = rightImageData;
+        pairMap[`${leftName}-${entry.filename}`].rightImage =
+          await entry.getData();
       } else if (!entry.directory) {
-        const data = await entry.getData();
-        await writer.add(entry.filename, data);
+        await writer.add(entry.filename, await entry.getData());
       }
     }
 
@@ -409,14 +412,15 @@ export class Archive {
         await writer.add(pairData.leftName, pairData.leftImage);
       } else if (pairData.leftImage !== null && pairData.rightImage !== null) {
         const mergedImage = await joinImages(
-          [pairData.leftImage, pairData.rightImage],
+          [
+            await readBuffer(pairData.leftImage),
+            await readBuffer(pairData.rightImage),
+          ],
           { direction: 'horizontal' }
         );
-
         const leftBase = path.basename(pairData.leftName, leftExt);
         const rightBase = path.basename(pairData.rightName, rightExt);
         const newEntryName = `${rightBase}-${leftBase}${leftExt}`;
-
         let obj = null as Buffer | null;
         if (leftExt === '.jpg' || leftExt === '.jpeg') {
           obj = await mergedImage.jpeg().toBuffer();
@@ -427,12 +431,10 @@ export class Archive {
         } else if (leftExt === '.webp') {
           obj = await mergedImage.webp().toBuffer();
         }
-
         if (obj === null) {
           continue;
         }
-
-        await writer.add(newEntryName, obj);
+        await writer.add(newEntryName, Readable.from(obj));
       }
     }
 
@@ -487,8 +489,6 @@ export class Archive {
       firstSplit = false;
 
       await writer.write(path.join(SERVER_DIR, split.filename));
-      // const data = await writer.write();
-      // fs.writeFileSync(path.join(SERVER_DIR, split.filename), data);
     }
   }
 
