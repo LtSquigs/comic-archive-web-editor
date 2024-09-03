@@ -41,14 +41,20 @@ export class CBZWriter implements ArchiveWriter {
     if (this.aborted) return;
     return new Promise(async (resolve, reject) => {
       this.tempStream.on('close', () => {
-        if (this.aborted) return;
+        try {
+          if (this.aborted) return;
 
-        const exists = fs.existsSync(file);
-        if (exists) {
-          fs.unlinkSync(file);
+          const exists = fs.existsSync(file);
+          if (exists) {
+            fs.unlinkSync(file);
+          }
+
+          fs.copyFileSync(this.tempPath, file);
+          fs.unlinkSync(this.tempPath);
+        } catch (e) {
+          reject(e);
+          return;
         }
-
-        fs.renameSync(this.tempPath, file);
 
         resolve();
       });
