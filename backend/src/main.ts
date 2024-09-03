@@ -352,6 +352,8 @@ const serverFunc = async (
   const path = url.pathname;
   const method = req.method;
 
+  console.log(`${method} request: ${req.url}`);
+
   if (
     path[path.length - 1] === '/' &&
     path.slice(0, path.length - 1) in routes
@@ -458,7 +460,9 @@ const server = http.createServer(async (req, res) => {
   try {
     await serverFunc(req, res, abortController.signal);
   } catch (error) {
-    console.log(error);
+    if (error && typeof error === 'object' && 'message' in error)
+      console.log(`Recieved Error: ${error.message}`);
+    else console.log(`Unknown Error Recieved: ${error}`);
     abortController.abort();
     if (!res.writableEnded) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -478,3 +482,4 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(SERVER_PORT, SERVER_HOST);
+console.log(`Server Running on ${SERVER_HOST}:${SERVER_PORT}`);

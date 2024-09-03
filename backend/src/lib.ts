@@ -109,17 +109,24 @@ export const getArchivesRelative = async (relativeDir: string) => {
 };
 
 export const resolveFiles = (files: string[]) => {
-  const fileNames = files.map((file) => {
-    // Normalizes away path traversal
-    const normalized = path.join('/', file);
-    const fullName = path.join(SERVER_DIR, normalized);
+  const fileNames = files
+    .map((file) => {
+      // Normalizes away path traversal
+      const normalized = path.join('/', file);
+      const fullName = path.join(SERVER_DIR, normalized);
+      const pathTraversal = !fullName.startsWith(SERVER_DIR);
 
-    return { file, resolved: fullName };
-  });
+      if (pathTraversal) {
+        return null;
+      }
+
+      return { file, resolved: fullName };
+    })
+    .filter((x) => x !== null);
 
   if (fileNames.length === 0) {
     throw new Error('FILE DOES NOT EXIST');
   }
 
-  return fileNames;
+  return fileNames as { file: string; resolved: string }[];
 };
