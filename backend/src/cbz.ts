@@ -125,7 +125,10 @@ export class CBZReader implements ArchiveReader {
 
             zipFile.on('entry', (entry: Entry) => {
               // OSX Util Makes these weird directories that we just dont care about
-              if (entry.fileName.startsWith('__MACOSX/')) {
+              if (
+                entry.fileName.startsWith('__MACOSX/') ||
+                entry.fileName.endsWith('.DS_STORE')
+              ) {
                 zipFile.readEntry();
                 return;
               }
