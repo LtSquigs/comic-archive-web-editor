@@ -449,6 +449,7 @@ const server = http.createServer(async (req, res) => {
 
     if (probablyAborted) {
       if (!res.writableEnded) res.end();
+      console.log(`${req.method} request aborted: ${req.url}`);
       abortController.abort();
     }
 
@@ -460,9 +461,10 @@ const server = http.createServer(async (req, res) => {
   try {
     await serverFunc(req, res, abortController.signal);
   } catch (error) {
+    console.log(`${req.method} request error: ${req.url}`);
     if (error && typeof error === 'object' && 'message' in error)
-      console.log(`Recieved Error: ${error.message}`);
-    else console.log(`Unknown Error Recieved: ${error}`);
+      console.log(`\t${error.message}`);
+    else console.log(`\t${error}`);
     abortController.abort();
     if (!res.writableEnded) {
       res.writeHead(500, { 'Content-Type': 'application/json' });

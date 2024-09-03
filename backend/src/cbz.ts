@@ -13,22 +13,36 @@ export class CBZWriter implements ArchiveWriter {
   writer: Archiver;
   tempStream: Writable;
   tempPath: string;
+  signal?: AbortSignal;
+  aborted: boolean;
 
   constructor(signal?: AbortSignal) {
-    temp.cleanup();
+    temp.cleanupSync();
     this.tempStream = temp.createWriteStream();
     this.writer = archiver('zip', {
       zlib: { level: 9 },
     });
     this.tempPath = (this.tempStream as any).path;
     this.writer.pipe(this.tempStream);
+    this.aborted = false;
+    signal?.addEventListener('abort', () => {
+      this.writer.destroy();
+      this.tempStream.destroy();
+      this.aborted = true;
+      temp.cleanupSync();
+    });
   }
   async add(path: string, stream: Readable) {
+    if (this.aborted) return;
     this.writer.append(stream, { name: path });
   }
+
   async write(file: string): Promise<void> {
+    if (this.aborted) return;
     return new Promise(async (resolve, reject) => {
       this.tempStream.on('close', () => {
+        if (this.aborted) return;
+
         const exists = fs.existsSync(file);
         if (exists) {
           fs.unlinkSync(file);
@@ -43,6 +57,7 @@ export class CBZWriter implements ArchiveWriter {
         reject(e);
       });
 
+      if (this.aborted) return;
       await this.writer.finalize();
     });
   }
