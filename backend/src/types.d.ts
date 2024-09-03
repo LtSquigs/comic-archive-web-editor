@@ -16,7 +16,7 @@ export interface ArchiveWriter {
   write(file: string): Promise<void>;
 }
 
-type routeResponse =
+export type RouteResponse =
   | {
       type: 'json';
       body: object;
@@ -28,15 +28,8 @@ type routeResponse =
     }
   | null;
 
-type routeHandler = (
-  params: URLSearchParams,
+type RouteHandler = (
+  params: any,
   body: any,
   signal?: AbortSignal
-) => Promise<routeResponse>;
-
-export type RouteHandlers =
-  | {
-      GET?: routeHandler;
-      POST?: routeHandler;
-    }
-  | routeHandler;
+) => Promise<RouteResponse>;

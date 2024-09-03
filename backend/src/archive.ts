@@ -5,7 +5,6 @@ import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
 import {
-  readBuffer,
   REGISTERED_READERS,
   REGISTERED_WRITERS,
   removeExif,
@@ -13,6 +12,7 @@ import {
 } from './lib.js';
 import { Entry, EntryMap, JoinPair, Split } from './shared/types.js';
 import { Readable } from 'stream';
+import getRawBody from 'raw-body';
 
 // Very basic cache that just keeps the last opened CBZ read in memory
 // between requests. The usual use case is to get many requests for the
@@ -166,7 +166,7 @@ export class Archive {
 
       if (name.match(nameRegex)) {
         const data = await entry.getData();
-        return ComicInfo.fromXML((await readBuffer(data)).toString());
+        return ComicInfo.fromXML(await getRawBody(data, { encoding: 'utf8' }));
       }
     }
 
@@ -232,7 +232,7 @@ export class Archive {
         let data = await entry.getData();
         const mimeType = mime.getType(entry.filename);
         if (mimeType && mimeType.startsWith('image/')) {
-          data = Readable.from(await removeExif(data));
+          data = removeExif(data);
         }
 
         await writer.add(entry.filename, await Promise.resolve(data));
@@ -413,8 +413,8 @@ export class Archive {
       } else if (pairData.leftImage !== null && pairData.rightImage !== null) {
         const mergedImage = await joinImages(
           [
-            await readBuffer(pairData.leftImage),
-            await readBuffer(pairData.rightImage),
+            await getRawBody(pairData.leftImage),
+            await getRawBody(pairData.rightImage),
           ],
           { direction: 'horizontal' }
         );

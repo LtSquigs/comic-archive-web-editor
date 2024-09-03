@@ -1,10 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactElement, useEffect, useRef, useState } from 'react';
 import { API } from './api';
+
+/* types */
+import { ActionState, SplitMarker } from './types';
+import { Entry, APIMetadata } from '../shared/types';
+
+/* components */
 import FileList from './fileList';
 import MetadataEditor from './metadata';
 import EntriesEditor from './entries';
-import { ActionState, SplitMarker } from './types';
-import { Entry, APIMetadata } from '../shared/types';
+import JoinPages from './joinPages';
+import PageMetadata from './pageMetadata';
+import ArchiveSplitter from './archiveSplitter';
+import BulkMetadata from './bulkMetadata';
+
+/* shad-cn components */
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResizableHandle,
@@ -13,12 +23,8 @@ import {
 } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import JoinPages from './joinPages';
-import PageMetadata from './pageMetadata';
-import ArchiveSplitter from './archiveSplitter';
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
-import BulkMetadata from './bulkMetadata';
 import { useToast } from '@/hooks/use-toast';
 
 export function App() {
@@ -26,24 +32,20 @@ export function App() {
   const [metadata, setMetadata] = useState<APIMetadata>({});
   const [entries, setEntries] = useState<Entry[]>([]);
   const [imageEntries, setImageEntiries] = useState<Entry[]>([]);
-  const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
-  const [selectedTab, setSelectedTab] = useState('metadata');
-  const [loading, setLoading] = useState(ActionState.NONE);
   const [defaultSelectedFile, setDefaultSelectedFile] = useState<
     string | undefined
   >(undefined);
+
+  const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
+  const [selectedTab, setSelectedTab] = useState('metadata');
+  const [loading, setLoading] = useState(ActionState.NONE);
+
   const fileRef = useRef<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     API.setFiles(selectedFiles);
   }, [selectedFiles]);
-
-  useEffect(() => {
-    setImageEntiries(
-      (entries || []).filter((entry) => entry.isImage && !entry.isCover)
-    );
-  }, [entries]);
 
   useEffect(() => {
     (async () => {
@@ -59,7 +61,11 @@ export function App() {
         setLoading(ActionState.NONE);
         return;
       }
+
       setEntries(entries.data);
+      setImageEntiries(
+        (entries.data || []).filter((entry) => entry.isImage && !entry.isCover)
+      );
 
       const metadata = await API.getMetadata();
       if (metadata.error) {
@@ -71,6 +77,7 @@ export function App() {
         setLoading(ActionState.NONE);
         return;
       }
+
       setMetadata(metadata.data);
 
       setLoading(ActionState.NONE);
@@ -101,6 +108,9 @@ export function App() {
       return;
     }
     setEntries(entries.data);
+    setImageEntiries(
+      (entries.data || []).filter((entry) => entry.isImage && !entry.isCover)
+    );
   };
 
   const refreshFiles = async (
@@ -132,6 +142,13 @@ export function App() {
 
     setDeleteStatus(ActionState.NONE);
     await refreshFiles();
+  };
+
+  const renderLoading = (component: ReactElement) => {
+    if (loading === ActionState.INPROGRESS) {
+      return <Skeleton className="w-[400px] h-[30px]" />;
+    }
+    return component;
   };
 
   return (
@@ -177,9 +194,7 @@ export function App() {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="metadata">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <ScrollArea
                       style={{ height: 'calc(100vh - 40px - 2.5rem)' }}
                     >
@@ -194,9 +209,7 @@ export function App() {
                   )}
                 </TabsContent>
                 <TabsContent value="entries" className="h-full">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <ScrollArea
                       style={{ height: 'calc(100vh - 40px - 2.5rem)' }}
                     >
@@ -208,9 +221,7 @@ export function App() {
                   )}
                 </TabsContent>
                 <TabsContent value="page">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <PageMetadata
                       entries={imageEntries}
                       file={selectedFiles[0]}
@@ -219,9 +230,7 @@ export function App() {
                   )}
                 </TabsContent>
                 <TabsContent value="join">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <JoinPages
                       entries={imageEntries}
                       file={selectedFiles[0]}
@@ -230,9 +239,7 @@ export function App() {
                   )}
                 </TabsContent>
                 <TabsContent value="splitter">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <ArchiveSplitter
                       entries={imageEntries}
                       file={selectedFiles[0]}
@@ -246,9 +253,7 @@ export function App() {
                   )}
                 </TabsContent>
                 <TabsContent value="bulk" className="h-full">
-                  {loading === ActionState.INPROGRESS ? (
-                    <Skeleton className="w-[400px] h-[30px]" />
-                  ) : (
+                  {renderLoading(
                     <BulkMetadata files={selectedFiles}></BulkMetadata>
                   )}
                 </TabsContent>

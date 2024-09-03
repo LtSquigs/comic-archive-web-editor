@@ -20,11 +20,7 @@ export const abortableRequest = async <T>(
   try {
     return await fn(abortController.signal);
   } catch (error: any) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return { error: true, errorStr: error.message };
-    }
-
-    throw error;
+    return { error: true, errorStr: error.message };
   } finally {
     abortController = null;
   }

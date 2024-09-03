@@ -15,6 +15,7 @@ export class CBZWriter implements ArchiveWriter {
   tempPath: string;
   signal?: AbortSignal;
   aborted: boolean;
+  abortHandler: (() => {}) | null;
 
   constructor(signal?: AbortSignal) {
     temp.cleanupSync();
@@ -25,12 +26,17 @@ export class CBZWriter implements ArchiveWriter {
     this.tempPath = (this.tempStream as any).path;
     this.writer.pipe(this.tempStream);
     this.aborted = false;
-    signal?.addEventListener('abort', () => {
+    this.signal = signal;
+    this.abortHandler = async () => {
       this.writer.destroy();
       this.tempStream.destroy();
       this.aborted = true;
       temp.cleanupSync();
-    });
+      if (this.abortHandler !== null)
+        signal?.removeEventListener('abort', this.abortHandler);
+      this.abortHandler = null;
+    };
+    signal?.addEventListener('abort', this.abortHandler);
   }
   async add(path: string, stream: Readable) {
     if (this.aborted) return;
@@ -43,14 +49,22 @@ export class CBZWriter implements ArchiveWriter {
       this.tempStream.on('close', () => {
         try {
           if (this.aborted) return;
+          if (this.abortHandler !== null)
+            this.signal?.removeEventListener('abort', this.abortHandler);
 
           const exists = fs.existsSync(file);
+          let cleanup = false;
           if (exists) {
-            fs.unlinkSync(file);
+            fs.copyFileSync(file, file + '.bak');
+            cleanup = true;
           }
 
           fs.copyFileSync(this.tempPath, file);
           fs.unlinkSync(this.tempPath);
+
+          if (cleanup) {
+            fs.unlinkSync(file + '.bak');
+          }
         } catch (e) {
           reject(e);
           return;
@@ -60,7 +74,14 @@ export class CBZWriter implements ArchiveWriter {
       });
 
       this.tempStream.on('error', (e) => {
+        if (this.abortHandler !== null)
+          this.signal?.removeEventListener('abort', this.abortHandler);
         reject(e);
+      });
+
+      this.writer.on('error', (e) => {
+        if (this.abortHandler !== null)
+          this.signal?.removeEventListener('abort', this.abortHandler);
       });
 
       if (this.aborted) return;
@@ -103,6 +124,11 @@ export class CBZReader implements ArchiveReader {
             this.reader = zipFile;
 
             zipFile.on('entry', (entry: Entry) => {
+              // OSX Util Makes these weird directories that we just dont care about
+              if (entry.fileName.startsWith('__MACOSX/')) {
+                zipFile.readEntry();
+                return;
+              }
               this.internalEntries.push({
                 filename: entry.fileName,
                 directory: entry.fileName[entry.fileName.length - 1] === '/',
