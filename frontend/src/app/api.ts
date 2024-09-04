@@ -276,7 +276,7 @@ export class API {
 
   static async delete(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/delete}`, {
+      const resp = await fetch(`/archive/delete`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',

@@ -23,9 +23,8 @@ import {
 } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { UpdateIcon } from '@radix-ui/react-icons';
 import { useToast } from '@/hooks/use-toast';
+import DeleteButton from './deleteButton';
 
 export function App() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -36,7 +35,6 @@ export function App() {
     string | undefined
   >(undefined);
 
-  const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [selectedTab, setSelectedTab] = useState('metadata');
   const [loading, setLoading] = useState(ActionState.NONE);
 
@@ -118,7 +116,6 @@ export function App() {
     noRedirect?: boolean
   ) => {
     if (fileRef.current) await fileRef.current.refresh();
-    setDeleteStatus(ActionState.NONE);
     if (!noRedirect) {
       setSelectedFiles(selectedFile ? [selectedFile] : []);
       setDefaultSelectedFile(selectedFile);
@@ -126,22 +123,6 @@ export function App() {
       setEntries([]);
       setMetadata({});
     }
-  };
-
-  const onDelete = async () => {
-    setDeleteStatus(ActionState.INPROGRESS);
-    const deleted = await API.delete();
-
-    toast({
-      title: !deleted.error ? 'Task Finished' : 'Task Failed',
-      variant: !deleted.error ? 'default' : 'destructive',
-      description: !deleted.error
-        ? 'Deleting archive completed.'
-        : `Error occured while deleting archive: ${deleted.errorStr}.`,
-    });
-
-    setDeleteStatus(ActionState.NONE);
-    await refreshFiles();
   };
 
   const renderLoading = (component: ReactElement) => {
@@ -258,18 +239,13 @@ export function App() {
                   )}
                 </TabsContent>
               </Tabs>
-              <Button
-                variant={'destructive'}
-                className="absolute top-4 right-4"
-                onClick={() => {
-                  onDelete();
-                }}
-              >
-                {deleteStatus === ActionState.INPROGRESS ? (
-                  <UpdateIcon className="mr-1 animate-spin" />
-                ) : null}{' '}
-                Delete Archive
-              </Button>
+              <div className="absolute top-4 right-4">
+                <DeleteButton
+                  onDelete={async () => {
+                    await refreshFiles();
+                  }}
+                />
+              </div>
             </>
           ) : null}
         </div>
