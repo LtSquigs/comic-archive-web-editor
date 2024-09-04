@@ -78,7 +78,7 @@ export const CoverSelector = forwardRef(function CoverSelector(
     return (
       <div className="relative">
         <img
-          src={`/archive/image?files=${files[0]}&entry=${currentEntry.entryName}`}
+          src={API.getImageUrl(files[0], currentEntry.entryName)}
           className="max-w-full max-h-full"
         />
         {coverIdx - 1 >= 0 ? (

@@ -29,7 +29,7 @@ const getFiles = (params: any) => {
   return resolveFiles(files);
 };
 
-const getFileFromBody = (body: any) => {
+const getFilesFromBody = (body: any) => {
   let files = (body.files as string | string[]) || [];
 
   if (typeof files === 'string') {
@@ -98,8 +98,8 @@ app.get(
 app.post(
   '/archive/image/join',
   wrapHandler(async (params, body, signal) => {
-    const files = getFiles(params);
-    const pairs: JoinPair[] = body || [];
+    const files = getFilesFromBody(body);
+    const pairs: JoinPair[] = body.joinList || [];
 
     if (files.length > 1) {
       throw new Error('TOO MANY FILES');
@@ -172,7 +172,7 @@ app.get(
 app.post(
   '/archive/cover',
   wrapHandler(async (params, body, signal) => {
-    const files = getFiles(params);
+    const files = getFilesFromBody(body);
     const newCover: string = (body || {}).entry;
 
     if (files.length > 1) {
@@ -195,10 +195,10 @@ app.post(
   })
 );
 
-app.get(
+app.post(
   '/archive/entries',
   wrapHandler(async (params, body, signal) => {
-    const files = getFiles(params);
+    const files = getFilesFromBody(body);
 
     if (files.length > 1) {
       throw new Error('TOO MANY FILES');
@@ -214,11 +214,11 @@ app.get(
   })
 );
 
-app.post(
+app.put(
   '/archive/entries',
   wrapHandler(async (params, body, signal) => {
-    const files = getFiles(params);
-    const nameMap: EntryMap = body || {};
+    const files = getFilesFromBody(body);
+    const nameMap: EntryMap = body.map || {};
 
     if (files.length > 1) {
       throw new Error('TOO MANY FILES');
@@ -239,8 +239,8 @@ app.post(
 app.post(
   '/archive/split',
   wrapHandler(async (params, body, signal) => {
-    const files = getFiles(params);
-    const splits: Split[] = body || [];
+    const files = getFilesFromBody(body);
+    const splits: Split[] = body.splits || [];
 
     if (files.length > 1) {
       throw new Error('TOO MANY FILES');
@@ -265,7 +265,7 @@ app.post(
 app.post(
   '/archive/flatten',
   wrapHandler(async (params, body, signal) => {
-    for (const { resolved } of getFiles(params)) {
+    for (const { resolved } of getFilesFromBody(body)) {
       const archive = new Archive(resolved, signal);
       await archive.load();
       try {
@@ -282,7 +282,7 @@ app.post(
 app.post(
   '/archive/removeExif',
   wrapHandler(async (params, body, signal) => {
-    for (const { resolved } of getFiles(params)) {
+    for (const { resolved } of getFilesFromBody(body)) {
       const archive = new Archive(resolved, signal);
       await archive.load();
       try {
@@ -299,18 +299,19 @@ app.post(
 app.post(
   '/archive/delete',
   wrapHandler(async (params, body, signal) => {
-    for (const { resolved } of getFiles(params)) {
+    for (const { resolved } of getFilesFromBody(body)) {
       fs.unlinkSync(resolved);
     }
 
     return { type: 'json', body: { success: true } };
   })
 );
-app.get(
+
+app.post(
   '/archive/metadata',
   wrapHandler(async (params, body, signal) => {
     return new Promise((resolve, reject) => {
-      const files = getFiles(params);
+      const files = getFilesFromBody(body);
       let idx = 0;
       let allMetadata: APIMetadata | undefined = undefined;
 
@@ -374,12 +375,13 @@ app.get(
   })
 );
 
-app.post(
+app.put(
   '/archive/metadata',
   wrapHandler(async (params, body, signal) => {
-    const newMetadata: Metadata = body || {};
+    const files = getFilesFromBody(body);
+    const newMetadata: Metadata = body.metadata || {};
 
-    for (const file of getFiles(params)) {
+    for (const file of files) {
       const archive = new Archive(file.resolved, signal);
       await archive.load();
       try {
@@ -405,7 +407,7 @@ app.post(
   wrapHandler(async (params, body, signal) => {
     const metadata: MetadataMap = (body || {}).metadata || {};
 
-    for (const { file, resolved } of getFileFromBody(body)) {
+    for (const { file, resolved } of getFilesFromBody(body)) {
       const archive = new Archive(resolved, signal);
       await archive.load();
       try {

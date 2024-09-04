@@ -26,17 +26,6 @@ export const abortableRequest = async <T>(
   }
 };
 
-const fileParam = (files: string[] = []) => {
-  const params = new URLSearchParams();
-
-  // Iterating the search parameters
-  for (const file of files) {
-    params.append('files', file);
-  }
-
-  return params.toString();
-};
-
 export class API {
   static files: string[] = [];
 
@@ -66,7 +55,13 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<Entry[]>> => {
-      const resp = await fetch(`/archive/entries?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/entries`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files }),
         signal,
       });
       const body = await resp.json();
@@ -85,13 +80,13 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/entries?${fileParam(API.files)}`, {
-        method: 'POST',
+      const resp = await fetch(`/archive/entries`, {
+        method: 'PUT',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(map),
+        body: JSON.stringify({ files: API.files, map }),
         signal,
       });
       const body = await resp.json();
@@ -106,8 +101,13 @@ export class API {
 
   static async flattenEntries(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/flatten?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/flatten`, {
         method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files }),
         signal,
       });
       const body = await resp.json();
@@ -122,8 +122,13 @@ export class API {
 
   static async removeExif(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/removeExif?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/removeExif`, {
         method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files }),
         signal,
       });
       const body = await resp.json();
@@ -142,7 +147,13 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<APIMetadata>> => {
-      const resp = await fetch(`/archive/metadata?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/metadata`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files }),
         signal,
       });
       const body = await resp.json();
@@ -161,13 +172,13 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/metadata?${fileParam(API.files)}`, {
-        method: 'POST',
+      const resp = await fetch(`/archive/metadata`, {
+        method: 'PUT',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(metadata),
+        body: JSON.stringify({ files: API.files, metadata }),
         signal,
       });
       const body = await resp.json();
@@ -209,18 +220,31 @@ export class API {
     if (API.files.length > 1) {
       return '';
     }
-    return `/archive/cover?${fileParam(API.files)}`;
+
+    const params = new URLSearchParams();
+    for (const file of API.files) {
+      params.append('files', file);
+    }
+
+    return `/archive/cover?${params.toString()}`;
+  }
+
+  static getImageUrl(file: string, entry: string): string {
+    const params = new URLSearchParams();
+    params.append('files', file);
+    params.append('entry', entry);
+    return `/archive/image?${params.toString()}`;
   }
 
   static async setCover(entry: Entry): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/cover?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/cover`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ entry: entry.entryName }),
+        body: JSON.stringify({ files: API.files, entry: entry.entryName }),
         signal,
       });
       const body = await resp.json();
@@ -233,13 +257,13 @@ export class API {
 
   static async joinImages(joinList: JoinPair[]): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/image/join?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/image/join`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(joinList),
+        body: JSON.stringify({ files: API.files, joinList: joinList }),
         signal,
       });
       const body = await resp.json();
@@ -252,8 +276,13 @@ export class API {
 
   static async delete(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/delete?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/delete}`, {
         method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ files: API.files }),
         signal,
       });
       const body = await resp.json();
@@ -302,13 +331,13 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/split?${fileParam(API.files)}`, {
+      const resp = await fetch(`/archive/split`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(splits),
+        body: JSON.stringify({ files: API.files, splits }),
         signal,
       });
       const body = await resp.json();

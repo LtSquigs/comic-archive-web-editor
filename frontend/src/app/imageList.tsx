@@ -4,6 +4,7 @@ import { Entry } from '../shared/types';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { API } from './api';
 
 export function ImageList({
   entries,
@@ -103,16 +104,17 @@ export function ImageList({
             <div className="max-h-full h-full flex flex-col justify-center">
               <img
                 className="max-h-full max-w-full"
-                src={`/archive/image?files=${file}&entry=${
+                src={API.getImageUrl(
+                  file,
                   entries[currentEntryIdx + 1].entryName
-                }`}
+                )}
               />
             </div>
           ) : null}
           <div className="max-h-full h-full flex flex-col justify-center relative">
             <img
               className="max-h-full max-w-full"
-              src={`/archive/image?files=${file}&entry=${currentEntry.entryName}`}
+              src={API.getImageUrl(file, currentEntry.entryName)}
             />
             {imageControls ? imageControls(currentEntryIdx) : null}
           </div>
@@ -122,9 +124,10 @@ export function ImageList({
             <div className="max-h-full h-full flex flex-col justify-center">
               <img
                 className="max-h-full max-w-full"
-                src={`/archive/image?files=${file}&entry=${
+                src={API.getImageUrl(
+                  file,
                   entries[currentEntryIdx + 1].entryName
-                }`}
+                )}
               />
             </div>
           ) : null}
