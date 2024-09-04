@@ -2,14 +2,19 @@ name: Create and publish Docker image
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag of image'
+        required: true
+        default: 'latest'
+        type: string
   push:
     branches:
       - main
-    tags:
-      - v*
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  TAG: ${{ inputs.tag || 'latest' }}
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
@@ -31,13 +36,5 @@ jobs:
 
           # This changes all uppercase characters to lowercase.
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-          # This strips the git ref prefix from the version.
-          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          # This strips the "v" prefix from the tag name.
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-          # This uses the Docker `latest` tag convention.
-          [ "$VERSION" == "main" ] && VERSION=latest
-          echo IMAGE_ID=$IMAGE_ID
-          echo VERSION=$VERSION
-          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-          docker push $IMAGE_ID:$VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$TAG
+          docker push $IMAGE_ID:$TAG
