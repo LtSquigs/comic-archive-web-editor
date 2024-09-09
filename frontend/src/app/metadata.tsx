@@ -141,14 +141,16 @@ export function MetadataEditor({
     <>
       <div className="mt-4 p-4 grid grid-cols-11 gap-4 content-start">
         <div className="col-span-3 row-span-5 relative">
-          <div className="mb-2 w-full">
-            <MetadataScraper
-              fullMetadata={currentMetadata}
-              onUpdateMetadata={(metadata) => {
-                setCurrentMetadata(metadata);
-              }}
-            ></MetadataScraper>
-          </div>
+          {files.length === 1 ? (
+            <div className="mb-2 w-full">
+              <MetadataScraper
+                fullMetadata={currentMetadata}
+                onUpdateMetadata={(metadata) => {
+                  setCurrentMetadata(metadata);
+                }}
+              ></MetadataScraper>
+            </div>
+          ) : null}
           <CoverSelector
             disabled={metadataStatus === ActionState.INPROGRESS}
             files={files}

@@ -160,16 +160,19 @@ export const scrapeMALManga = async (url: string): Promise<APIMetadata> => {
     date = parseInt(dateMatch[3], 10);
   }
 
-  let writers = (data.authors || [])
+  const writers = (data.authors || [])
     .filter((author: any) => author.role.match(/story/i))
+    .map((author: any) => author.node.first_name + ' ' + author.node.last_name)
+    .join(',');
+
+  const artists = (data.authors || [])
+    .filter((author: any) => author.role.match(/art/i))
     .map((author: any) => author.node.first_name + ' ' + author.node.last_name)
     .join(',');
 
   const publishers = (data.serialization || [])
     .map((magazine: any) => magazine.node.name)
     .join(',');
-
-  console.log(data.genres);
 
   return {
     title: data.title,
@@ -179,6 +182,7 @@ export const scrapeMALManga = async (url: string): Promise<APIMetadata> => {
     summary: data.synopsis,
     communityRating: data.mean || null,
     writer: writers || null,
+    penciller: artists || null,
     genre:
       (data.genres || []).map((genre: any) => genre.name).join(',') || null,
     count: data.num_chapters,
@@ -236,11 +240,10 @@ export const scrapeComicVineIssue = async (
   const storyArcs = creditsToList(issue.story_arc_credits);
   const teams = creditsToList(issue.team_credits);
 
-  // // Unsure of what to do with "artist", comicinfo is not really made for that
-  // if (!inkers && !colorists && !pencillers) {
-  //   pencillers = artists;
-  //   inkers = artists;
-  // }
+  // Unsure of what to do with "artist", comicinfo is not really made for that
+  if (!pencillers) {
+    pencillers = artists;
+  }
 
   let year = null;
   let month = null;
