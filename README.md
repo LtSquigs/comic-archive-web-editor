@@ -13,6 +13,7 @@ The editor currently supports:
 - Joining images within an archive together (e.g. double page spreads)
 - Spltting an Archive into multiple smaller archives (e.g. spltting a Volume into multiple Chapters)
 - Editing the metadata of multiple archives in bulk using CSV
+- Scraping metadata from ComicVine and MyAnimeList APIs
 
 ### Running the server
 
@@ -40,6 +41,16 @@ ln -s ../frontend/dist public
 npx tsc
 ARCHIVE_DIR=<archive_dir> node dist/main.js
 ```
+
+### Setting up ComicVine or MyAnimeList scraper
+
+In order to scrape from ComicVine or MyAnimeList you will need an API Key/Client Key for them.
+
+For ComicVine, you can get this by signing up for ComicVine and going to [https://comicvine.gamespot.com/api/](https://comicvine.gamespot.com/api/) to get your key.
+
+For MyAnimeList, you must go to your user settings and request setting up an App. This app should be set as an "other" app and you should fill out what is required in the form. This should provide you with a Client Key and Secret. You _only_ need the Client Key in order to use it with this tool.
+
+These can be saved in the scraper dialogue box.
 
 ### Example Screenshots
 

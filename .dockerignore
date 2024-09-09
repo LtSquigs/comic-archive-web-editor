@@ -3,3 +3,4 @@
 backend/public
 **/.DS_Store
 **/Thumbs.db
+**/.scrape-keys.json

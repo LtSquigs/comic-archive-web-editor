@@ -7,6 +7,8 @@ import {
   MetadataMap,
   JoinPair,
   EntryMap,
+  APIKeys,
+  SearchResult,
 } from '../shared/types';
 
 let abortController: AbortController | null = null;
@@ -36,17 +38,53 @@ export class API {
   static async getArchiveFiles(
     subdir: string = ''
   ): Promise<APIResult<FileEntry[]>> {
-    const params = new URLSearchParams();
-    params.append('prefix', subdir);
+    return abortableRequest(async (signal): Promise<APIResult<FileEntry[]>> => {
+      const params = new URLSearchParams();
+      params.append('prefix', subdir);
 
-    const resp = await fetch(`/archive/list?${params.toString()}`);
+      const resp = await fetch(`/archive/list?${params.toString()}`, {
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.paths, error: false };
+    });
+  }
+
+  static async getKeys(): Promise<APIResult<APIKeys>> {
+    const resp = await fetch(`/keys`);
     const body = await resp.json();
 
     if (body.error) {
       return { error: true, errorStr: body.error };
     }
 
-    return { data: body.paths, error: false };
+    return { data: body.keys, error: false };
+  }
+
+  static async setKeys(keys: APIKeys): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
+      const resp = await fetch(`/keys`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ keys }),
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false };
+    });
   }
 
   static async getEntries(): Promise<APIResult<Entry[]>> {
@@ -345,6 +383,27 @@ export class API {
         return { error: true, errorStr: body.error };
       }
       return { data: true, error: false };
+    });
+  }
+
+  static async scrape(url: string): Promise<APIResult<APIMetadata>> {
+    return abortableRequest(async (signal): Promise<APIResult<APIMetadata>> => {
+      const resp = await fetch(`/scrape`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: url }),
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.metadata, error: false };
     });
   }
 }

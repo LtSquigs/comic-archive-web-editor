@@ -3,7 +3,10 @@ import express from 'express';
 import fs from 'fs';
 import {
   getArchivesRelative,
+  getKeys,
   resolveFiles,
+  saveKeys,
+  scrapeUrl,
   SERVER_DIR,
   SERVER_HOST,
   SERVER_PORT,
@@ -92,6 +95,30 @@ app.get(
     const prefix = (params['prefix'] || '') as string;
     const files = await getArchivesRelative(prefix);
     return { type: 'json', body: { paths: files } };
+  })
+);
+
+app.get(
+  '/keys',
+  wrapHandler(async (params, body, signal) => {
+    return { type: 'json', body: { keys: getKeys() } };
+  })
+);
+
+app.put(
+  '/keys',
+  wrapHandler(async (params, body, signal) => {
+    saveKeys(body.keys);
+    return { type: 'json', body: { success: true } };
+  })
+);
+
+app.post(
+  '/scrape',
+  wrapHandler(async (params, body, signal) => {
+    const url = body.url || '';
+    const metadata = await scrapeUrl(url);
+    return { type: 'json', body: { metadata } };
   })
 );
 
