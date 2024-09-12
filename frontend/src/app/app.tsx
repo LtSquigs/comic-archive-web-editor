@@ -25,7 +25,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import DeleteButton from './deleteButton';
-import MetadataScraper from './metadataScraper';
 
 export function App() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -110,6 +109,19 @@ export function App() {
     setImageEntiries(
       (entries.data || []).filter((entry) => entry.isImage && !entry.isCover)
     );
+  };
+
+  const refreshMetadata = async () => {
+    const metadata = await API.getMetadata();
+    if (metadata.error) {
+      toast({
+        title: 'Task Failed',
+        variant: 'destructive',
+        description: `Unable to refresh metadata. Recieved Error ${metadata.errorStr}`,
+      });
+      return;
+    }
+    setMetadata(metadata.data);
   };
 
   const refreshFiles = async (
@@ -205,9 +217,14 @@ export function App() {
                 <TabsContent value="page">
                   {renderLoading(
                     <PageMetadata
+                      allEntries={entries}
                       entries={imageEntries}
                       file={selectedFiles[0]}
                       metadata={metadata}
+                      onPagesDeleted={async () => {
+                        await refreshEntries();
+                        await refreshMetadata();
+                      }}
                     />
                   )}
                 </TabsContent>

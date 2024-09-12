@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { ActionState } from './types';
-import { Entry, APIMetadata, APIPage, Metadata } from '../shared/types';
+import {
+  Entry,
+  APIMetadata,
+  APIPage,
+  Metadata,
+  EntryMap,
+  Page,
+} from '../shared/types';
 
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { UpdateIcon } from '@radix-ui/react-icons';
+import {
+  InfoCircledIcon,
+  ResetIcon,
+  TrashIcon,
+  UpdateIcon,
+} from '@radix-ui/react-icons';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -13,6 +25,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import ImageList from './imageList';
 import { API } from './api';
 import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { changeImageNum } from './utils';
 
 function PageMetadataEditor({
   pageNumber,
@@ -107,17 +127,24 @@ function PageMetadataEditor({
 }
 
 export function PageMetadata({
+  allEntries,
   entries,
   file,
   metadata,
+  onPagesDeleted,
 }: {
+  allEntries: Entry[];
   entries: Entry[];
   file: string;
+  onPagesDeleted: () => {};
   metadata: APIMetadata;
 }) {
+  const [renumberDeletes, setRenumberDeletes] = useState(true);
   const [metadataDirty, setMetadataDirty] = useState(false);
   const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
+  const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
+  const [toDelete, setToDelete] = useState<Entry[]>([]);
   const { toast } = useToast();
 
   const onUpdateMetadata = async (metadata: APIMetadata) => {
@@ -137,9 +164,10 @@ export function PageMetadata({
     const onlyPages = {
       pages: metadata.pages,
     };
+    setToDelete([]);
     setCurrentMetadata(onlyPages);
     setMetadataStatus(ActionState.NONE);
-  }, [metadata]);
+  }, [metadata, entries]);
 
   const renderMetadataEditor = (index: number) => {
     const pages = currentMetadata.pages || [];
@@ -216,6 +244,71 @@ export function PageMetadata({
       setMetadataDirty(false);
     };
 
+    const deletePages = async () => {
+      setDeleteStatus(ActionState.INPROGRESS);
+      const entriesToDelete = [...toDelete];
+      setToDelete([]);
+      const entryMap: EntryMap = {};
+      const newPages: Page[] = [];
+      let imageIdx = -1;
+      let skippedImages = 0;
+
+      for (const entry of allEntries) {
+        const shouldDelete = entriesToDelete.find(
+          (val) => val.entryName === entry.entryName
+        );
+        const isImage = entries.find(
+          (val) => val.entryName === entry.entryName
+        );
+        if (isImage) imageIdx++;
+        if (shouldDelete) {
+          skippedImages++;
+          continue;
+        }
+        if (renumberDeletes && isImage && skippedImages > 0) {
+          entryMap[entry.entryName] = changeImageNum(entry, skippedImages);
+        } else {
+          entryMap[entry.entryName] = entry.entryName;
+        }
+        if (isImage) {
+          const existingPage = currentMetadata.pages?.find(
+            (val) => val.image === imageIdx
+          );
+          if (existingPage && typeof existingPage.image === 'number') {
+            const newPage = {
+              ...(existingPage as Page),
+              ...{ image: existingPage.image - skippedImages },
+            };
+            newPages.push(newPage);
+          }
+        }
+      }
+      const renamedEntries = await API.renameEntries(entryMap);
+      if (renamedEntries.error) {
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `Error occured while deleting pages: ${renamedEntries.errorStr}.`,
+        });
+      } else {
+        if (newPages.length > 0) {
+          const setData = await API.setMetadata({
+            pages: newPages,
+          } as Metadata);
+          if (setData.error) {
+            toast({
+              title: 'Task Failed',
+              variant: 'destructive',
+              description: `Error occured while deleting pages: ${setData.errorStr}.`,
+            });
+          }
+        }
+      }
+
+      setDeleteStatus(ActionState.NONE);
+      await onPagesDeleted();
+    };
+
     return (
       <ScrollArea className="h-full">
         <div className="pl-4 pr-4">
@@ -232,10 +325,57 @@ export function PageMetadata({
               ) : null}{' '}
               Save All Page Metadata
             </Button>
+            <Separator></Separator>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={renumberDeletes}
+                onCheckedChange={(checked: boolean) => {
+                  setRenumberDeletes(checked);
+                }}
+              />
+              <Label>Renumber Images On Delete</Label>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-start">
+                    <InfoCircledIcon />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>AAA</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Button
+              disabled={
+                toDelete.length <= 0 || deleteStatus === ActionState.INPROGRESS
+              }
+              onClick={deletePages}
+              variant={'destructive'}
+            >
+              {deleteStatus === ActionState.INPROGRESS ? (
+                <UpdateIcon className="mr-1 animate-spin" />
+              ) : null}{' '}
+              Delete {toDelete.length} Marked Images
+            </Button>
           </div>
         </div>
       </ScrollArea>
     );
+  };
+
+  const toggleEntryToDelete = (entry: Entry) => {
+    //todo: refocus off of button
+    return () => {
+      setToDelete((prev) => {
+        if (prev.find((val) => val.entryName === entry.entryName)) {
+          return (prev as Entry[]).filter(
+            (item) => item.entryName !== entry.entryName
+          );
+        }
+        return [...(prev ?? []), entry];
+      });
+    };
   };
 
   return (
@@ -246,6 +386,23 @@ export function PageMetadata({
         return (
           <div className="max-h-full h-full grow">
             {renderMetadataEditor(index)}
+          </div>
+        );
+      }}
+      imageControls={(index: number) => {
+        const entry = entries[index];
+        const markedDeleted = toDelete.find(
+          (val) => val.entryName === entry.entryName
+        );
+        return (
+          <div className="absolute top-1 right-1">
+            <Button
+              className="p-0 w-[30px] h-[30px] opacity-70"
+              onClick={toggleEntryToDelete(entry)}
+              variant={markedDeleted ? 'secondary' : 'default'}
+            >
+              {markedDeleted ? <ResetIcon /> : <TrashIcon />}
+            </Button>
           </div>
         );
       }}

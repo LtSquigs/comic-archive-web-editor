@@ -1,4 +1,10 @@
-import { AgeRating, BaseMetadata, BlackAndWhite, Manga } from '../shared/types';
+import {
+  AgeRating,
+  BaseMetadata,
+  BlackAndWhite,
+  Entry,
+  Manga,
+} from '../shared/types';
 
 type OnlyKeysWithType<Map, TypeToFind, Key = keyof Map> = Key extends keyof Map
   ? Map[Key] extends TypeToFind
@@ -221,3 +227,31 @@ export const MetadataFields = {
     help: 'A Global Trade Item Number identifying the book.',
   },
 } satisfies metadataFieldComponentMap;
+
+export const changeImageNum = (entry: Entry, change: number) => {
+  const numRange = entry.baseName.match(/(\d+)-(\d+)$/);
+  if (numRange) {
+    const padLen = numRange[1].length;
+    const firstNum = parseInt(numRange[1]);
+    const secondNum = parseInt(numRange[2]);
+    const newFirst = (firstNum - change).toString().padStart(padLen, '0');
+    const newSecond = (secondNum - change).toString().padStart(padLen, '0');
+    const newBaseName = entry.baseName.replace(
+      /(\d+)-(\d+)$/,
+      `${newFirst}-${newSecond}`
+    );
+
+    return `${newBaseName}${entry.extName}`;
+  }
+
+  const singleNumber = entry.baseName.match(/(\d+)$/);
+  if (singleNumber) {
+    const padLen = singleNumber[1].length;
+    const num = parseInt(singleNumber[1]);
+    const newNum = (num - change).toString().padStart(padLen, '0');
+    const newBaseName = entry.baseName.replace(/(\d+)$/, `${newNum}`);
+    return `${newBaseName}${entry.extName}`;
+  }
+
+  return entry.entryName;
+};

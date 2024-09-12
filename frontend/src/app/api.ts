@@ -8,7 +8,6 @@ import {
   JoinPair,
   EntryMap,
   APIKeys,
-  SearchResult,
 } from '../shared/types';
 
 let abortController: AbortController | null = null;
@@ -107,6 +106,12 @@ export class API {
       if (body.error) {
         return { error: true, errorStr: body.error };
       }
+
+      const entries = body.entries;
+
+      entries.sort((a: Entry, b: Entry) =>
+        a.entryName.localeCompare(b.entryName, undefined, { numeric: true })
+      );
 
       return { data: body.entries, error: false };
     });
@@ -267,10 +272,17 @@ export class API {
     return `/archive/cover?${params.toString()}`;
   }
 
-  static getImageUrl(file: string, entry: string): string {
+  static getImageUrl(
+    file: string,
+    entry: string,
+    cacheBuster?: string
+  ): string {
     const params = new URLSearchParams();
     params.append('files', file);
     params.append('entry', entry);
+    if (cacheBuster) {
+      params.append('cacheBust', cacheBuster);
+    }
     return `/archive/image?${params.toString()}`;
   }
 

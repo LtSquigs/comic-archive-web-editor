@@ -1,13 +1,3 @@
-export type SearchResult = {
-  id: string;
-  api: string;
-  description: string;
-  number?: string;
-  name: string;
-  image: string;
-  kind: 'issue' | 'volume';
-};
-
 export type APIKeys = {
   comicvine?: string;
   myanimelist?: string;

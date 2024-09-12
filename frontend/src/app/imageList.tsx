@@ -24,6 +24,7 @@ export function ImageList({
   const [currentEntry, setCurrentEntry] = useState(null as Entry | null);
   const [currentEntryIdx, setCurrentEntryIdx] = useState(0);
   const buttonsRef = useRef<Map<string, HTMLButtonElement> | null>(null);
+  const [cacheBuster, setCacheBuster] = useState<string | undefined>(undefined);
 
   function getButtonRefs() {
     if (!buttonsRef.current) {
@@ -83,6 +84,7 @@ export function ImageList({
       setCurrentEntry(entries[0]);
       setCurrentEntryIdx(0);
     }
+    setCacheBuster(Math.random().toString());
   }, [entries]);
 
   const changePage = (entry: Entry, idx: number) => {
@@ -106,7 +108,8 @@ export function ImageList({
                 className="max-h-full max-w-full"
                 src={API.getImageUrl(
                   file,
-                  entries[currentEntryIdx + 1].entryName
+                  entries[currentEntryIdx + 1].entryName,
+                  cacheBuster
                 )}
               />
             </div>
@@ -114,7 +117,7 @@ export function ImageList({
           <div className="max-h-full h-full flex flex-col justify-center relative">
             <img
               className="max-h-full max-w-full"
-              src={API.getImageUrl(file, currentEntry.entryName)}
+              src={API.getImageUrl(file, currentEntry.entryName, cacheBuster)}
             />
             {imageControls ? imageControls(currentEntryIdx) : null}
           </div>
@@ -126,7 +129,8 @@ export function ImageList({
                 className="max-h-full max-w-full"
                 src={API.getImageUrl(
                   file,
-                  entries[currentEntryIdx + 1].entryName
+                  entries[currentEntryIdx + 1].entryName,
+                  cacheBuster
                 )}
               />
             </div>
