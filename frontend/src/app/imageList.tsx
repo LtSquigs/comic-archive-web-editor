@@ -13,6 +13,7 @@ export function ImageList({
   multipleImages = false,
   imageControls = null,
   leftToRight = false,
+  onPageChange = null,
 }: {
   entries: Entry[];
   file: string;
@@ -20,6 +21,7 @@ export function ImageList({
   multipleImages?: boolean;
   imageControls?: ((index: number) => ReactElement | null) | null;
   leftToRight?: boolean;
+  onPageChange?: ((entry: Entry, nextEntry: Entry | null) => void) | null;
 }) {
   const [currentEntry, setCurrentEntry] = useState(null as Entry | null);
   const [currentEntryIdx, setCurrentEntryIdx] = useState(0);
@@ -90,6 +92,9 @@ export function ImageList({
   const changePage = (entry: Entry, idx: number) => {
     setCurrentEntry(entry);
     setCurrentEntryIdx(idx);
+    onPageChange
+      ? onPageChange(entry, idx + 1 < entries.length ? entries[idx + 1] : null)
+      : null;
   };
 
   if (currentEntry === null) {

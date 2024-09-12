@@ -144,8 +144,28 @@ export function PageMetadata({
   const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
-  const [toDelete, setToDelete] = useState<Entry[]>([]);
+  const [toDelete, setToDelete] = useState<string[]>([]);
+  const [currentEntry, setCurrentEntry] = useState<Entry>(entries[0]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+        return;
+      }
+      if (event.key.toLowerCase() === 'd') {
+        if (currentEntry) toggleEntryToDelete(currentEntry)();
+
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  });
 
   const onUpdateMetadata = async (metadata: APIMetadata) => {
     setMetadataStatus(ActionState.INPROGRESS);
@@ -255,7 +275,7 @@ export function PageMetadata({
 
       for (const entry of allEntries) {
         const shouldDelete = entriesToDelete.find(
-          (val) => val.entryName === entry.entryName
+          (val) => val === entry.entryName
         );
         const isImage = entries.find(
           (val) => val.entryName === entry.entryName
@@ -326,6 +346,9 @@ export function PageMetadata({
               Save All Page Metadata
             </Button>
             <Separator></Separator>
+            <p className="text-xs text-muted-foreground">
+              Select images to delete with trash icon (or press 'd' on image).
+            </p>
             <div className="flex items-center space-x-2">
               <Switch
                 checked={renumberDeletes}
@@ -365,15 +388,14 @@ export function PageMetadata({
   };
 
   const toggleEntryToDelete = (entry: Entry) => {
-    //todo: refocus off of button
-    return () => {
+    return (event?: React.MouseEvent<HTMLButtonElement>) => {
+      // Blur the button so you can still use keyboard shortcuts
+      event?.currentTarget.blur();
       setToDelete((prev) => {
-        if (prev.find((val) => val.entryName === entry.entryName)) {
-          return (prev as Entry[]).filter(
-            (item) => item.entryName !== entry.entryName
-          );
+        if (prev.find((val) => val === entry.entryName)) {
+          return (prev as string[]).filter((item) => item !== entry.entryName);
         }
-        return [...(prev ?? []), entry];
+        return [...(prev ?? []), entry.entryName];
       });
     };
   };
@@ -391,9 +413,7 @@ export function PageMetadata({
       }}
       imageControls={(index: number) => {
         const entry = entries[index];
-        const markedDeleted = toDelete.find(
-          (val) => val.entryName === entry.entryName
-        );
+        const markedDeleted = toDelete.find((val) => val === entry.entryName);
         return (
           <div className="absolute top-1 right-1">
             <Button
@@ -405,6 +425,9 @@ export function PageMetadata({
             </Button>
           </div>
         );
+      }}
+      onPageChange={(entry) => {
+        setCurrentEntry(entry);
       }}
     ></ImageList>
   );

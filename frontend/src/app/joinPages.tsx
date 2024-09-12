@@ -35,6 +35,35 @@ export function JoinPages({
   );
   const { toast } = useToast();
   const joinList = useRef([] as JoinPair[]);
+  const [currentEntry, setCurrentEntry] = useState(entries[0]);
+  const [nextEntry, setNextEntry] = useState(
+    entries.length > 1 ? entries[1] : null
+  );
+
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+        return;
+      }
+      if (event.key.toLowerCase() === 'j') {
+        if (nextEntry) {
+          if (pageDirection === 'LTR') {
+            toggleChangeList(currentEntry, nextEntry);
+          } else {
+            toggleChangeList(nextEntry, currentEntry);
+          }
+        }
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  });
+
   useEffect(() => {
     setJoinStatus(ActionState.NONE);
     joinList.current = [];
@@ -127,7 +156,11 @@ export function JoinPages({
               : 'default'
           }
           onClick={() => {
-            toggleChangeList(nextEntry, currentEntry);
+            if (pageDirection === 'LTR') {
+              toggleChangeList(currentEntry, nextEntry);
+            } else {
+              toggleChangeList(nextEntry, currentEntry);
+            }
           }}
         >
           {joinedImages[nextEntry.entryName] && currentEntry.entryName ? (
@@ -154,7 +187,8 @@ export function JoinPages({
                   Use left and right arrow keys to navigate images.
                 </li>
                 <li className="mt-2">
-                  Select images to join using the link buttons between images.
+                  Select images to join using the link buttons between images
+                  (or press "j").
                 </li>
                 <li className="mt-2">
                   Click the join button below to join all of the selected
@@ -196,6 +230,10 @@ export function JoinPages({
         );
       }}
       imageControls={renderImageControls}
+      onPageChange={(entry, nextEntry) => {
+        setCurrentEntry(entry);
+        setNextEntry(nextEntry);
+      }}
       multipleImages
       leftToRight={pageDirection === 'LTR'}
     ></ImageList>
