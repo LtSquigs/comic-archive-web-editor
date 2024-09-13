@@ -41,7 +41,10 @@ export function JoinPages({
   );
 
   useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyPress = async (event: KeyboardEvent) => {
+      if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+        return;
+      }
       if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
         return;
       }
@@ -55,6 +58,14 @@ export function JoinPages({
         }
         event.stopPropagation();
         event.preventDefault();
+      }
+
+      if (event.key.toLowerCase() === 'enter') {
+        if (numToJoin > 0) {
+          await joinImages();
+          event.stopPropagation();
+          event.preventDefault();
+        }
       }
     };
 

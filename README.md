@@ -52,6 +52,19 @@ For MyAnimeList, you must go to your user settings and request setting up an App
 
 These can be saved in the scraper dialogue box.
 
+### Keyboard Shortcuts
+
+The following keyboard shortcuts are available while using the site:
+
+| Key                      | Effect                                                        |
+| ------------------------ | ------------------------------------------------------------- |
+| Up Arrow/Down Arrow      | Next/Last file on the file tree                               |
+| Left/Right Arrow         | On pages with images, next/last image                         |
+| Shift + Left/Right Arrow | Next/Last Tab                                                 |
+| d                        | On Page Metadata tab, marks image to be deleted               |
+| J                        | On Image Join tab, marks images to be joined                  |
+| Enter                    | On Page Metadata/Image Join, submits form (including deletes) |
+
 ### Example Screenshots
 
 | Editing Metadata                                          | Page Metadata                                            | Editing Entries                                        |

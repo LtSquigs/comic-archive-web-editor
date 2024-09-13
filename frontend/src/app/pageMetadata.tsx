@@ -33,6 +33,17 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { changeImageNum } from './utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 function PageMetadataEditor({
   pageNumber,
@@ -146,10 +157,14 @@ export function PageMetadata({
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [toDelete, setToDelete] = useState<string[]>([]);
   const [currentEntry, setCurrentEntry] = useState<Entry>(entries[0]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
+    const handleKeyPress = async (event: KeyboardEvent) => {
+      if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+        return;
+      }
       if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
         return;
       }
@@ -158,6 +173,18 @@ export function PageMetadata({
 
         event.stopPropagation();
         event.preventDefault();
+      }
+
+      if (event.key.toLowerCase() === 'enter') {
+        if (toDelete.length > 0 && !deleteOpen) {
+          setDeleteOpen(true);
+          event.stopPropagation();
+          event.preventDefault();
+        } else if (metadataDirty) {
+          await saveMetadata();
+          event.stopPropagation();
+          event.preventDefault();
+        }
       }
     };
 
@@ -188,6 +215,75 @@ export function PageMetadata({
     setCurrentMetadata(onlyPages);
     setMetadataStatus(ActionState.NONE);
   }, [metadata, entries]);
+
+  const saveMetadata = async () => {
+    await onUpdateMetadata(currentMetadata);
+    setMetadataDirty(false);
+  };
+
+  const deletePages = async () => {
+    setDeleteStatus(ActionState.INPROGRESS);
+    const entriesToDelete = [...toDelete];
+    setToDelete([]);
+    const entryMap: EntryMap = {};
+    const newPages: Page[] = [];
+    let imageIdx = -1;
+    let skippedImages = 0;
+
+    for (const entry of allEntries) {
+      const shouldDelete = entriesToDelete.find(
+        (val) => val === entry.entryName
+      );
+      const isImage = entries.find((val) => val.entryName === entry.entryName);
+      if (isImage) imageIdx++;
+      if (shouldDelete) {
+        skippedImages++;
+        continue;
+      }
+      if (renumberDeletes && isImage && skippedImages > 0) {
+        entryMap[entry.entryName] = changeImageNum(entry, skippedImages);
+      } else {
+        entryMap[entry.entryName] = entry.entryName;
+      }
+      if (isImage) {
+        const existingPage = currentMetadata.pages?.find(
+          (val) => val.image === imageIdx
+        );
+        if (existingPage && typeof existingPage.image === 'number') {
+          const newPage = {
+            ...(existingPage as Page),
+            ...{ image: existingPage.image - skippedImages },
+          };
+          newPages.push(newPage);
+        }
+      }
+    }
+    const renamedEntries = await API.renameEntries(entryMap);
+    if (renamedEntries.error) {
+      toast({
+        title: 'Task Failed',
+        variant: 'destructive',
+        description: `Error occured while deleting pages: ${renamedEntries.errorStr}.`,
+      });
+    } else {
+      if (newPages.length > 0) {
+        const setData = await API.setMetadata({
+          pages: newPages,
+        } as Metadata);
+        if (setData.error) {
+          toast({
+            title: 'Task Failed',
+            variant: 'destructive',
+            description: `Error occured while deleting pages: ${setData.errorStr}.`,
+          });
+        }
+        setMetadataDirty(false);
+      }
+    }
+
+    setDeleteStatus(ActionState.NONE);
+    await onPagesDeleted();
+  };
 
   const renderMetadataEditor = (index: number) => {
     const pages = currentMetadata.pages || [];
@@ -259,76 +355,6 @@ export function PageMetadata({
       });
     };
 
-    const saveMetadata = async () => {
-      await onUpdateMetadata(currentMetadata);
-      setMetadataDirty(false);
-    };
-
-    const deletePages = async () => {
-      setDeleteStatus(ActionState.INPROGRESS);
-      const entriesToDelete = [...toDelete];
-      setToDelete([]);
-      const entryMap: EntryMap = {};
-      const newPages: Page[] = [];
-      let imageIdx = -1;
-      let skippedImages = 0;
-
-      for (const entry of allEntries) {
-        const shouldDelete = entriesToDelete.find(
-          (val) => val === entry.entryName
-        );
-        const isImage = entries.find(
-          (val) => val.entryName === entry.entryName
-        );
-        if (isImage) imageIdx++;
-        if (shouldDelete) {
-          skippedImages++;
-          continue;
-        }
-        if (renumberDeletes && isImage && skippedImages > 0) {
-          entryMap[entry.entryName] = changeImageNum(entry, skippedImages);
-        } else {
-          entryMap[entry.entryName] = entry.entryName;
-        }
-        if (isImage) {
-          const existingPage = currentMetadata.pages?.find(
-            (val) => val.image === imageIdx
-          );
-          if (existingPage && typeof existingPage.image === 'number') {
-            const newPage = {
-              ...(existingPage as Page),
-              ...{ image: existingPage.image - skippedImages },
-            };
-            newPages.push(newPage);
-          }
-        }
-      }
-      const renamedEntries = await API.renameEntries(entryMap);
-      if (renamedEntries.error) {
-        toast({
-          title: 'Task Failed',
-          variant: 'destructive',
-          description: `Error occured while deleting pages: ${renamedEntries.errorStr}.`,
-        });
-      } else {
-        if (newPages.length > 0) {
-          const setData = await API.setMetadata({
-            pages: newPages,
-          } as Metadata);
-          if (setData.error) {
-            toast({
-              title: 'Task Failed',
-              variant: 'destructive',
-              description: `Error occured while deleting pages: ${setData.errorStr}.`,
-            });
-          }
-        }
-      }
-
-      setDeleteStatus(ActionState.NONE);
-      await onPagesDeleted();
-    };
-
     return (
       <ScrollArea className="h-full">
         <div className="pl-4 pr-4">
@@ -348,6 +374,7 @@ export function PageMetadata({
             <Separator></Separator>
             <p className="text-xs text-muted-foreground">
               Select images to delete with trash icon (or press 'd' on image).
+              This also saves in progress metadata.
             </p>
             <div className="flex items-center space-x-2">
               <Switch
@@ -357,30 +384,21 @@ export function PageMetadata({
                 }}
               />
               <Label>Renumber Images On Delete</Label>
-
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger className="flex items-start">
                     <InfoCircledIcon />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>AAA</p>
+                    <p>
+                      This will try to renumber the pages according to how many
+                      were deleted.
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <Button
-              disabled={
-                toDelete.length <= 0 || deleteStatus === ActionState.INPROGRESS
-              }
-              onClick={deletePages}
-              variant={'destructive'}
-            >
-              {deleteStatus === ActionState.INPROGRESS ? (
-                <UpdateIcon className="mr-1 animate-spin" />
-              ) : null}{' '}
-              Delete {toDelete.length} Marked Images
-            </Button>
+            {renderDeleteAlert()}
           </div>
         </div>
       </ScrollArea>
@@ -398,6 +416,52 @@ export function PageMetadata({
         return [...(prev ?? []), entry.entryName];
       });
     };
+  };
+
+  const renderDeleteAlert = () => {
+    return (
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => setDeleteOpen(open)}
+      >
+        <AlertDialogTrigger>
+          <Button
+            className="w-full"
+            disabled={
+              toDelete.length <= 0 || deleteStatus === ActionState.INPROGRESS
+            }
+            variant={'destructive'}
+          >
+            {deleteStatus === ActionState.INPROGRESS ? (
+              <UpdateIcon className="mr-1 animate-spin" />
+            ) : null}{' '}
+            Delete {toDelete.length} Marked Images
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Are you sure you want to delete?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              files selected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deletePages}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
   };
 
   return (

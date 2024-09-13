@@ -41,6 +41,35 @@ export function App() {
   const fileRef = useRef<any>(null);
   const { toast } = useToast();
 
+  const tabs = ['metadata', 'entries', 'page', 'join', 'splitter', 'bulk'];
+
+  useEffect(() => {
+    const handleKeyPress = async (event: KeyboardEvent) => {
+      if (!event.shiftKey) {
+        return;
+      }
+      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+        return;
+      }
+      const idx = tabs.findIndex((val) => val === selectedTab);
+      if (event.key === 'ArrowRight') {
+        setSelectedTab(idx + 1 < tabs.length ? tabs[idx + 1] : tabs[0]);
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      if (event.key === 'ArrowLeft') {
+        setSelectedTab(idx - 1 >= 0 ? tabs[idx - 1] : tabs[tabs.length - 1]);
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  });
+
   useEffect(() => {
     API.setFiles(selectedFiles);
   }, [selectedFiles]);
@@ -92,7 +121,8 @@ export function App() {
       return;
     }
     setSelectedFiles(ids);
-    setSelectedTab('metadata');
+
+    if (ids.length === 1) setDefaultSelectedFile(ids[0]);
   };
 
   const refreshEntries = async () => {
@@ -151,6 +181,7 @@ export function App() {
         <ScrollArea className="h-[100vh] rounded-md  p-4">
           <FileList
             initialSelectedId={defaultSelectedFile}
+            selectedIds={selectedFiles}
             onUpdateSelected={handleUpdateSelected}
             ref={fileRef}
           />
@@ -169,21 +200,44 @@ export function App() {
                 }}
               >
                 <TabsList>
-                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
-                  <TabsTrigger value="entries">Entries</TabsTrigger>
-                  <TabsTrigger value="page" disabled={selectedFiles.length > 1}>
+                  <TabsTrigger
+                    value="metadata"
+                    onClick={(event) => event.currentTarget.blur()}
+                  >
+                    Metadata
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="entries"
+                    onClick={(event) => event.currentTarget.blur()}
+                  >
+                    Entries
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="page"
+                    disabled={selectedFiles.length > 1}
+                    onClick={(event) => event.currentTarget.blur()}
+                  >
                     Page Metadata
                   </TabsTrigger>
-                  <TabsTrigger value="join" disabled={selectedFiles.length > 1}>
+                  <TabsTrigger
+                    value="join"
+                    disabled={selectedFiles.length > 1}
+                    onClick={(event) => event.currentTarget.blur()}
+                  >
                     Join Pages
                   </TabsTrigger>
                   <TabsTrigger
                     value="splitter"
                     disabled={selectedFiles.length > 1}
+                    onClick={(event) => event.currentTarget.blur()}
                   >
                     Archive Splitter
                   </TabsTrigger>
-                  <TabsTrigger value="bulk" disabled={selectedFiles.length < 1}>
+                  <TabsTrigger
+                    value="bulk"
+                    disabled={selectedFiles.length < 1}
+                    onClick={(event) => event.currentTarget.blur()}
+                  >
                     Bulk Metadata
                   </TabsTrigger>
                 </TabsList>

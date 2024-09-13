@@ -416,9 +416,9 @@ const File = forwardRef<
               event.preventDefault();
             }
           }}
-          onClick={(event) =>
-            selectItem(value, event.shiftKey, event.ctrlKey || event.metaKey)
-          }
+          onClick={(event) => {
+            selectItem(value, event.shiftKey, event.ctrlKey || event.metaKey);
+          }}
         >
           {fileIcon ?? <FileIcon className="h-4 w-4" />}
           {children}

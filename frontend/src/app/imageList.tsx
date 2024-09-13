@@ -37,10 +37,13 @@ export function ImageList({
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+        return;
+      }
       if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
         return;
       }
-      const increment = event.shiftKey ? 2 : 1;
+      const increment = 1;
       const refs = getButtonRefs();
       if (event.key === 'ArrowRight') {
         if (currentEntryIdx + increment < entries.length) {
@@ -154,7 +157,8 @@ export function ImageList({
                     ? 'default'
                     : 'secondary'
                 }
-                onClick={() => {
+                onClick={(event) => {
+                  event.currentTarget.blur();
                   changePage(entry, idx);
                 }}
                 ref={(node) => {

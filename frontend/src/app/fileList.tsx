@@ -3,6 +3,7 @@ import {
   ReactElement,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
 } from 'react';
 import { Tree, Folder, File } from '@/components/extension/tree-view-api';
@@ -56,9 +57,11 @@ const findTree = (id: string, trees: FileTree[]): FileTree | null => {
 export const FileList = forwardRef(function FileList(
   {
     initialSelectedId,
+    selectedIds,
     onUpdateSelected,
   }: {
     initialSelectedId: string | undefined;
+    selectedIds: string[];
     onUpdateSelected: (ids: string[]) => void;
   },
   ref
@@ -66,6 +69,7 @@ export const FileList = forwardRef(function FileList(
   const [files, setFiles] = useState<FileTree[]>([]);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
+  const fileList = useRef([] as string[]);
   const { toast } = useToast();
   useImperativeHandle(
     ref,
@@ -78,6 +82,46 @@ export const FileList = forwardRef(function FileList(
     },
     [expandedFolders]
   );
+
+  useEffect(() => {
+    const handleKeyPress = async (event: KeyboardEvent) => {
+      if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+        return;
+      }
+      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+        return;
+      }
+      if (selectedIds.length === 0) {
+        return;
+      }
+      const lastSelected = selectedIds[selectedIds.length - 1];
+      const idx = fileList.current.findIndex((val) => val === lastSelected);
+      if (idx === -1) {
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        if (idx === fileList.current.length) {
+          return;
+        }
+        await onUpdateSelected([fileList.current[idx + 1]]);
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      if (event.key === 'ArrowUp') {
+        if (idx === 0) {
+          return;
+        }
+        await onUpdateSelected([fileList.current[idx - 1]]);
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  });
 
   useEffect(() => {
     (async () => {
@@ -224,6 +268,7 @@ export const FileList = forwardRef(function FileList(
           </File>
         );
         group.push(tree.id);
+        fileList.current.push(tree.id);
       }
     }
 
@@ -232,6 +277,7 @@ export const FileList = forwardRef(function FileList(
     return treeElements;
   };
 
+  fileList.current = [];
   return (
     <div>
       <h6 className="text-xl font-semibold mb-2 flex items-center">
