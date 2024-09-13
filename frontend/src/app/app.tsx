@@ -80,11 +80,13 @@ export function App() {
 
       const entries = await API.getEntries();
       if (entries.error) {
-        toast({
-          title: 'Task Failed',
-          variant: 'destructive',
-          description: `Unable to load entries. Recieved Error ${entries.errorStr}`,
-        });
+        if (!entries.aborted) {
+          toast({
+            title: 'Task Failed',
+            variant: 'destructive',
+            description: `Unable to load entries. Recieved Error ${entries.errorStr}`,
+          });
+        }
         setLoading(ActionState.NONE);
         return;
       }
@@ -96,11 +98,13 @@ export function App() {
 
       const metadata = await API.getMetadata();
       if (metadata.error) {
-        toast({
-          title: 'Task Failed',
-          variant: 'destructive',
-          description: `Unable to load metadata. Recieved Error ${metadata.errorStr}`,
-        });
+        if (!metadata.aborted) {
+          toast({
+            title: 'Task Failed',
+            variant: 'destructive',
+            description: `Unable to load metadata. Recieved Error ${metadata.errorStr}`,
+          });
+        }
         setLoading(ActionState.NONE);
         return;
       }
@@ -128,11 +132,12 @@ export function App() {
   const refreshEntries = async () => {
     const entries = await API.getEntries();
     if (entries.error) {
-      toast({
-        title: 'Task Failed',
-        variant: 'destructive',
-        description: `Unable to refresh entries. Recieved Error ${entries.errorStr}`,
-      });
+      if (!entries.aborted)
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `Unable to refresh entries. Recieved Error ${entries.errorStr}`,
+        });
       return;
     }
     setEntries(entries.data);
@@ -144,11 +149,13 @@ export function App() {
   const refreshMetadata = async () => {
     const metadata = await API.getMetadata();
     if (metadata.error) {
-      toast({
-        title: 'Task Failed',
-        variant: 'destructive',
-        description: `Unable to refresh metadata. Recieved Error ${metadata.errorStr}`,
-      });
+      if (!metadata.aborted) {
+        toast({
+          title: 'Task Failed',
+          variant: 'destructive',
+          description: `Unable to refresh metadata. Recieved Error ${metadata.errorStr}`,
+        });
+      }
       return;
     }
     setMetadata(metadata.data);

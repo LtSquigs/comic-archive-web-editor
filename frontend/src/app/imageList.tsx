@@ -57,6 +57,11 @@ export function ImageList({
             ?.scrollIntoView();
         }
 
+        if (currentEntryIdx + increment === entries.length) {
+          changePage(entries[0], 0);
+
+          refs.get(entries[0].entryName)?.scrollIntoView();
+        }
         event.stopPropagation();
         event.preventDefault();
       }
@@ -71,6 +76,11 @@ export function ImageList({
           refs
             .get(entries[currentEntryIdx - increment].entryName)
             ?.scrollIntoView();
+        }
+        if (currentEntryIdx - increment === -1) {
+          changePage(entries[entries.length - 1], entries.length - 1);
+
+          refs.get(entries[entries.length - 1].entryName)?.scrollIntoView();
         }
 
         event.stopPropagation();

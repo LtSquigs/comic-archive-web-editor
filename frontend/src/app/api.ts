@@ -21,6 +21,9 @@ export const abortableRequest = async <T>(
   try {
     return await fn(abortController.signal);
   } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { error: true, aborted: true, errorStr: error.message };
+    }
     return { error: true, errorStr: error.message };
   } finally {
     abortController = null;

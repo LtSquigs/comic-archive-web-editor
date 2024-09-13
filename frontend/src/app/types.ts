@@ -18,6 +18,7 @@ export type APIResult<T> =
     }
   | {
       error: true;
+      aborted?: boolean;
       errorStr: string;
     };
 
