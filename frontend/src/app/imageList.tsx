@@ -9,6 +9,8 @@ import { API } from './api';
 export function ImageList({
   entries,
   file,
+  gap = undefined,
+  gapColor = undefined,
   controls = null,
   multipleImages = false,
   imageControls = null,
@@ -17,6 +19,8 @@ export function ImageList({
 }: {
   entries: Entry[];
   file: string;
+  gap?: number;
+  gapColor?: string;
   controls?: ((index: number) => ReactElement | null) | null;
   multipleImages?: boolean;
   imageControls?: ((index: number) => ReactElement | null) | null;
@@ -40,7 +44,11 @@ export function ImageList({
       if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
         return;
       }
-      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      if (
+        ['INPUT', 'BUTTON', 'TEXTAREA'].includes(
+          (event.target as HTMLElement).tagName
+        )
+      ) {
         return;
       }
       const increment = 1;
@@ -127,7 +135,9 @@ export function ImageList({
                 src={API.getImageUrl(
                   file,
                   entries[currentEntryIdx + 1].entryName,
-                  cacheBuster
+                  cacheBuster,
+                  gap ? { side: 'right', size: gap } : undefined,
+                  gapColor ? gapColor : undefined
                 )}
               />
             </div>
@@ -148,7 +158,9 @@ export function ImageList({
                 src={API.getImageUrl(
                   file,
                   entries[currentEntryIdx + 1].entryName,
-                  cacheBuster
+                  cacheBuster,
+                  gap ? { side: 'left', size: gap } : undefined,
+                  gapColor ? gapColor : undefined
                 )}
               />
             </div>

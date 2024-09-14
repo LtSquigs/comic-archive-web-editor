@@ -165,7 +165,11 @@ export function PageMetadata({
       if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
         return;
       }
-      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      if (
+        ['INPUT', 'BUTTON', 'TEXTAREA'].includes(
+          (event.target as HTMLElement).tagName
+        )
+      ) {
         return;
       }
       if (event.key.toLowerCase() === 'd') {

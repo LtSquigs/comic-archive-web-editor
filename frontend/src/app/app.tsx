@@ -48,7 +48,11 @@ export function App() {
       if (!event.shiftKey) {
         return;
       }
-      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      if (
+        ['INPUT', 'BUTTON', 'TEXTAREA'].includes(
+          (event.target as HTMLElement).tagName
+        )
+      ) {
         return;
       }
       const idx = tabs.findIndex((val) => val === selectedTab);

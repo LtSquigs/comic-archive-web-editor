@@ -278,13 +278,25 @@ export class API {
   static getImageUrl(
     file: string,
     entry: string,
-    cacheBuster?: string
+    cacheBuster?: string,
+    margin?: { side: 'left' | 'right'; size: number },
+    gapColor?: string
   ): string {
     const params = new URLSearchParams();
     params.append('files', file);
     params.append('entry', entry);
     if (cacheBuster) {
       params.append('cacheBust', cacheBuster);
+    }
+    if (margin && margin.size > 0) {
+      if (margin.side === 'left') {
+        params.append('ml', margin.size.toString());
+      } else {
+        params.append('mr', margin.size.toString());
+      }
+    }
+    if (gapColor) {
+      params.append('gapColor', gapColor);
     }
     return `/archive/image?${params.toString()}`;
   }
@@ -308,7 +320,11 @@ export class API {
     });
   }
 
-  static async joinImages(joinList: JoinPair[]): Promise<APIResult<boolean>> {
+  static async joinImages(
+    joinList: JoinPair[],
+    gap: number,
+    gapColor: string
+  ): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
       const resp = await fetch(`/archive/image/join`, {
         method: 'POST',
@@ -316,7 +332,12 @@ export class API {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ files: API.files, joinList: joinList }),
+        body: JSON.stringify({
+          files: API.files,
+          joinList: joinList,
+          gap: gap,
+          gapColor: gapColor,
+        }),
         signal,
       });
       const body = await resp.json();

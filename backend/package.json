@@ -14,6 +14,7 @@
     "join-images": "^1.1.5",
     "mime": "^3.0.0",
     "raw-body": "^3.0.0",
+    "sharp": "^0.32.6",
     "temp": "^0.9.4",
     "tslib": "^2.3.0",
     "xml-js-graphite": "^1.7.1",

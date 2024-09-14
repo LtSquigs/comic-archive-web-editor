@@ -5,6 +5,7 @@ import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
 import {
+  hexToRgb,
   REGISTERED_READERS,
   REGISTERED_WRITERS,
   removeExif,
@@ -345,7 +346,11 @@ export class Archive {
 
   // Combines images together in archive by the JoinPair's provided
   // Removes original images after join.
-  async combineImages(imagePairs: JoinPair[]): Promise<void> {
+  async combineImages(
+    imagePairs: JoinPair[],
+    gap: number,
+    gapColor: string
+  ): Promise<void> {
     if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return;
     if (this.dirty) await this.reload();
@@ -361,6 +366,7 @@ export class Archive {
     };
     const leftToRight = {} as { [key: string]: string };
     const rightToLeft = {} as { [key: string]: string };
+    const gapRGB = hexToRgb(gapColor || '#ffffff');
 
     for (const pair of imagePairs) {
       const leftExt = path.extname(pair.leftImage).toLowerCase();
@@ -414,9 +420,15 @@ export class Archive {
         const mergedImage = await joinImages(
           [
             await getRawBody(pairData.leftImage),
-            await getRawBody(pairData.rightImage),
+            {
+              src: await getRawBody(pairData.rightImage),
+              offsetX: gap > 0 ? gap : undefined,
+            },
           ],
-          { direction: 'horizontal' }
+          {
+            direction: 'horizontal',
+            color: { r: gapRGB?.r, g: gapRGB?.g, b: gapRGB?.b, alpha: 1 },
+          }
         );
         const leftBase = path.basename(pairData.leftName, leftExt);
         const rightBase = path.basename(pairData.rightName, rightExt);

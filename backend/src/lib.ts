@@ -9,7 +9,7 @@ import { convert } from 'html-to-text';
 export const SERVER_HOST = process.env.HOST ?? 'localhost';
 export const SERVER_PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 export const STATIC_PATH = 'public';
-export const KEYS_FILE = '.scrape-keys.json';
+export const KEYS_FILE = './config/.scrape-keys.json';
 export const SERVER_DIR = path.resolve(process.env.ARCHIVE_DIR ?? '/archives');
 export const ALLOWED_EXTENSIONS = CBZReader.extensions;
 export const REGISTERED_READERS = [CBZReader];
@@ -379,3 +379,14 @@ export const resolveFiles = (files: string[]) => {
 
   return fileNames as { file: string; resolved: string }[];
 };
+
+export function hexToRgb(hex: string) {
+  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
+}

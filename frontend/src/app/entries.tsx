@@ -83,6 +83,14 @@ const createEntryMap = (
     .filter((x) => x !== null);
 
   const renamedEntries = entries.map((entry) => {
+    if (entry.isDirectory) {
+      return {
+        extName: entry.extName,
+        baseName: entry.baseName,
+        dir: entry.dir,
+        sep: entry.sep,
+      };
+    }
     let baseName = entry.baseName;
     for (const regex of regexs) {
       baseName = baseName.replace(regex.regex, regex.replacement);

@@ -88,7 +88,11 @@ export const FileList = forwardRef(function FileList(
       if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
         return;
       }
-      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      if (
+        ['INPUT', 'BUTTON', 'TEXTAREA'].includes(
+          (event.target as HTMLElement).tagName
+        )
+      ) {
         return;
       }
       if (selectedIds.length === 0) {
@@ -100,7 +104,7 @@ export const FileList = forwardRef(function FileList(
         return;
       }
       if (event.key === 'ArrowDown') {
-        if (idx === fileList.current.length) {
+        if (idx === fileList.current.length - 1) {
           return;
         }
         await onUpdateSelected([fileList.current[idx + 1]]);

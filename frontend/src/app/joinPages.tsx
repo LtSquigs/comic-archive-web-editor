@@ -17,6 +17,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
+let defaultDirection = 'RTL';
 
 export function JoinPages({
   entries,
@@ -29,7 +32,9 @@ export function JoinPages({
 }) {
   const [joinStatus, setJoinStatus] = useState(ActionState.NONE);
   const [numToJoin, setNumToJoin] = useState(0);
-  const [pageDirection, setPageDirection] = useState('RTL');
+  const [pageDirection, setPageDirection] = useState(defaultDirection);
+  const [gap, setGap] = useState(0);
+  const [gapColor, setGapColor] = useState('#ffffff');
   const [joinedImages, setJoinedImages] = useState(
     {} as { [key: string]: boolean }
   );
@@ -45,7 +50,11 @@ export function JoinPages({
       if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
         return;
       }
-      if (['INPUT', 'BUTTON'].includes((event.target as HTMLElement).tagName)) {
+      if (
+        ['INPUT', 'BUTTON', 'TEXTAREA'].includes(
+          (event.target as HTMLElement).tagName
+        )
+      ) {
         return;
       }
       if (event.key.toLowerCase() === 'j') {
@@ -119,7 +128,7 @@ export function JoinPages({
   const joinImages = async () => {
     if (joinList.current.length >= 1) {
       setJoinStatus(ActionState.INPROGRESS);
-      const join = await API.joinImages(joinList.current);
+      const join = await API.joinImages(joinList.current, gap, gapColor);
       setJoinStatus(ActionState.NONE);
       toast({
         title: !join.error ? 'Task Finished' : 'Task Failed',
@@ -131,6 +140,7 @@ export function JoinPages({
     }
     joinList.current = [];
     setJoinedImages({});
+    setGap(0);
     setNumToJoin(0);
     onJoin();
   };
@@ -211,7 +221,10 @@ export function JoinPages({
               <Label>Page Order Direction</Label>
               <Select
                 value={pageDirection}
-                onValueChange={(value) => setPageDirection(value)}
+                onValueChange={(value) => {
+                  defaultDirection = value;
+                  setPageDirection(value);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={'Reading Direction'} />
@@ -225,6 +238,27 @@ export function JoinPages({
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Join Gap</Label>
+              <Input
+                type="number"
+                onChange={(event) => {
+                  const gap = parseInt(event.target.value);
+                  setGap(isNaN(gap) ? 0 : gap);
+                }}
+                value={gap}
+              ></Input>
+            </div>
+            <div>
+              <Label>Gap Fill Color</Label>
+              <Input
+                type="color"
+                onChange={(event) => {
+                  setGapColor(event.target.value);
+                }}
+                value={gapColor}
+              ></Input>
             </div>
             <Button
               disabled={joinStatus === ActionState.INPROGRESS}
@@ -240,6 +274,8 @@ export function JoinPages({
           </div>
         );
       }}
+      gap={gap}
+      gapColor={gapColor}
       imageControls={renderImageControls}
       onPageChange={(entry, nextEntry) => {
         setCurrentEntry(entry);

@@ -4,6 +4,7 @@ import fs from 'fs';
 import {
   getArchivesRelative,
   getKeys,
+  hexToRgb,
   resolveFiles,
   saveKeys,
   scrapeUrl,
@@ -21,6 +22,7 @@ import {
   Split,
 } from './shared/types.js';
 import { RouteHandler } from './types.js';
+import sharp from 'sharp';
 
 const getFiles = (params: any) => {
   let files = (params['files'] || []) as string | string[];
@@ -135,7 +137,7 @@ app.post(
     await archive.load();
 
     try {
-      await archive.combineImages(pairs);
+      await archive.combineImages(pairs, body.gap, body.gapColor);
     } finally {
       await archive.close();
     }
@@ -164,7 +166,41 @@ app.get(
         return null;
       }
 
-      return { type: 'stream', mime: mime || '', body: img };
+      let imgStream = img;
+
+      if (params['ml'] && !isNaN(parseInt(params['ml']))) {
+        const gapColor = hexToRgb(params['gapColor'] || '#ffffff');
+        const imgPipe = sharp().extend({
+          left: parseInt(params['ml']),
+          background: {
+            r: gapColor?.r,
+            g: gapColor?.g,
+            b: gapColor?.b,
+            alpha: 1,
+          },
+        });
+        imgStream = img.pipe(imgPipe);
+      }
+
+      if (params['mr'] && !isNaN(parseInt(params['mr']))) {
+        const gapColor = hexToRgb(params['gapColor'] || '#ffffff');
+        const imgPipe = sharp().extend({
+          right: parseInt(params['mr']),
+          background: {
+            r: gapColor?.r,
+            g: gapColor?.g,
+            b: gapColor?.b,
+            alpha: 1,
+          },
+        });
+        imgStream = img.pipe(imgPipe);
+      }
+
+      return {
+        type: 'stream',
+        mime: mime || '',
+        body: imgStream,
+      };
     } finally {
       await archive.close();
     }
