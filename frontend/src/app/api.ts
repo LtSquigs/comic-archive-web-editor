@@ -57,6 +57,54 @@ export class API {
     });
   }
 
+  static async uploadArchive(
+    file: File,
+    name: string
+  ): Promise<APIResult<boolean>> {
+    return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
+      const formData = new FormData();
+      formData.append(name, file);
+      // const params = new URLSearchParams();
+      // params.append('files', name);
+      const resp = await fetch(`/archive/upload`, {
+        method: 'PUT',
+        body: formData,
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false };
+    });
+  }
+
+  static async moveFile(
+    fromFile: string,
+    toFile: string
+  ): Promise<APIResult<string>> {
+    return abortableRequest(async (signal): Promise<APIResult<string>> => {
+      const resp = await fetch(`/archive/move`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fromFile, toFile }),
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.base, error: false };
+    });
+  }
+
   static async getKeys(): Promise<APIResult<APIKeys>> {
     const resp = await fetch(`/keys`);
     const body = await resp.json();
@@ -273,6 +321,12 @@ export class API {
     }
 
     return `/archive/cover?${params.toString()}`;
+  }
+
+  static getDownloadUrl(file: string): string {
+    const params = new URLSearchParams();
+    params.append('files', file);
+    return `/archive/download?${params.toString()}`;
   }
 
   static getImageUrl(

@@ -353,6 +353,7 @@ export const getArchivesRelative = async (relativeDir: string) => {
           entry.parentPath.replace(SERVER_DIR + path.sep, ''),
           entry.name
         ),
+        sep: path.sep,
       };
     });
 };

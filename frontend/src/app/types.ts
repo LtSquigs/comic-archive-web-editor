@@ -3,6 +3,7 @@ export type FileEntry = {
   name: string;
   path: string;
   parentPath: string;
+  sep: string;
 };
 
 export type SplitMarker = {

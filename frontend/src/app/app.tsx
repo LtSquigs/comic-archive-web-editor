@@ -25,9 +25,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import DeleteButton from './deleteButton';
+import DownloadButton from './downloadButton';
+import MoveButton from './moveButton';
 
 export function App() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedFilename, setSelectedFilename] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<APIMetadata>({});
   const [entries, setEntries] = useState<Entry[]>([]);
   const [imageEntries, setImageEntiries] = useState<Entry[]>([]);
@@ -119,7 +122,7 @@ export function App() {
     })();
   }, [selectedFiles, selectedTab]);
 
-  const handleUpdateSelected = (ids: string[]) => {
+  const handleUpdateSelected = (ids: string[], filename: string | null) => {
     // If the selected files have not actually changed, we don't update
     // the state and risk triggering a re-render
     if (
@@ -128,6 +131,7 @@ export function App() {
     ) {
       return;
     }
+    setSelectedFilename(filename);
     setSelectedFiles(ids);
 
     if (ids.length === 1) setDefaultSelectedFile(ids[0]);
@@ -173,7 +177,7 @@ export function App() {
     if (!noRedirect) {
       setSelectedFiles(selectedFile ? [selectedFile] : []);
       setDefaultSelectedFile(selectedFile);
-      setSelectedTab('metadata');
+      //setSelectedTab('metadata');
       setEntries([]);
       setMetadata({});
     }
@@ -323,6 +327,21 @@ export function App() {
                 </TabsContent>
               </Tabs>
               <div className="absolute top-4 right-4">
+                {selectedFiles.length === 1 ? (
+                  <DownloadButton
+                    file={selectedFiles[0]}
+                    filename={selectedFilename}
+                  />
+                ) : null}
+
+                {selectedFiles.length === 1 ? (
+                  <MoveButton
+                    file={selectedFiles[0]}
+                    onMoved={async (newFile, newFileName) => {
+                      await refreshFiles(newFile);
+                    }}
+                  />
+                ) : null}
                 <DeleteButton
                   onDelete={async () => {
                     await refreshFiles();

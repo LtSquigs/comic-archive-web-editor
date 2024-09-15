@@ -1,3 +1,4 @@
+import fileUpload from 'express-fileupload';
 import { Readable } from 'stream';
 
 export type ArchiveEntry = {
@@ -31,5 +32,6 @@ export type RouteResponse =
 type RouteHandler = (
   params: any,
   body: any,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  files?: fileUpload.FileArray | null
 ) => Promise<RouteResponse>;

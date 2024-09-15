@@ -10,12 +10,14 @@ import { Tree, Folder, File } from '@/components/extension/tree-view-api';
 import { API } from './api';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import { useToast } from '@/hooks/use-toast';
+import UploadButton from './uploadButton';
 
 type FileTree = {
   id: string;
   parent: string;
   name: string;
   hasChildren: boolean;
+  sep: string;
   children: FileTree[];
 };
 
@@ -30,6 +32,7 @@ const getFileTree = async (dir: string = '') => {
       parent: file.parentPath,
       name: file.name,
       hasChildren: file.directory,
+      sep: file.sep,
       children: [],
     };
   });
@@ -62,7 +65,7 @@ export const FileList = forwardRef(function FileList(
   }: {
     initialSelectedId: string | undefined;
     selectedIds: string[];
-    onUpdateSelected: (ids: string[]) => void;
+    onUpdateSelected: (ids: string[], filename: string | null) => void;
   },
   ref
 ) {
@@ -70,6 +73,8 @@ export const FileList = forwardRef(function FileList(
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
   const fileList = useRef([] as string[]);
+  const fileMap = useRef({} as { [key: string]: string });
+  const parentMap = useRef({} as { [key: string]: any });
   const { toast } = useToast();
   useImperativeHandle(
     ref,
@@ -107,7 +112,8 @@ export const FileList = forwardRef(function FileList(
         if (idx === fileList.current.length - 1) {
           return;
         }
-        await onUpdateSelected([fileList.current[idx + 1]]);
+        const file = fileList.current[idx + 1];
+        await onUpdateSelected([file], fileMap.current[file]);
         event.stopPropagation();
         event.preventDefault();
       }
@@ -115,7 +121,8 @@ export const FileList = forwardRef(function FileList(
         if (idx === 0) {
           return;
         }
-        await onUpdateSelected([fileList.current[idx - 1]]);
+        const file = fileList.current[idx - 1];
+        await onUpdateSelected([file], fileMap.current[file]);
         event.stopPropagation();
         event.preventDefault();
       }
@@ -226,7 +233,7 @@ export const FileList = forwardRef(function FileList(
       ids = [ids];
     }
 
-    onUpdateSelected(ids);
+    onUpdateSelected(ids, ids.length === 1 ? fileMap.current[ids[0]] : null);
   };
 
   const selectGroups: string[][] = [];
@@ -272,7 +279,9 @@ export const FileList = forwardRef(function FileList(
           </File>
         );
         group.push(tree.id);
+        fileMap.current[tree.id] = tree.name;
         fileList.current.push(tree.id);
+        parentMap.current[tree.id] = { path: parentId, sep: tree.sep };
       }
     }
 
@@ -282,6 +291,9 @@ export const FileList = forwardRef(function FileList(
   };
 
   fileList.current = [];
+  fileMap.current = {};
+  parentMap.current = {};
+  const fileTree = renderTree(files);
   return (
     <div>
       <h6 className="text-xl font-semibold mb-2 flex items-center">
@@ -296,6 +308,13 @@ export const FileList = forwardRef(function FileList(
             }}
           ></ReloadIcon>
         )}
+        <UploadButton
+          path={(parentMap.current[selectedIds[0]] || {}).path || ''}
+          sep={(parentMap.current[selectedIds[0]] || {}).sep || '/'}
+          onUploaded={async () => {
+            await refreshItems(false);
+          }}
+        ></UploadButton>
       </h6>
       <Tree
         multiSelect
@@ -305,7 +324,7 @@ export const FileList = forwardRef(function FileList(
         onToggleOpen={onFolderOpen}
         selectGroups={selectGroups}
       >
-        {renderTree(files)}
+        {fileTree}
       </Tree>
     </div>
   );

@@ -1,6 +1,8 @@
 import { Archive } from './archive.js';
 import express from 'express';
+import fileUpload from 'express-fileupload';
 import fs from 'fs';
+import path from 'path';
 import {
   getArchivesRelative,
   getKeys,
@@ -23,6 +25,7 @@ import {
 } from './shared/types.js';
 import { RouteHandler } from './types.js';
 import sharp from 'sharp';
+import mime from 'mime';
 
 const getFiles = (params: any) => {
   let files = (params['files'] || []) as string | string[];
@@ -46,6 +49,7 @@ const getFilesFromBody = (body: any) => {
 
 const app = express();
 app.use(express.json());
+app.use(fileUpload());
 app.use(express.static(STATIC_PATH));
 
 const wrapHandler = (fn: RouteHandler): express.RequestHandler => {
@@ -66,7 +70,12 @@ const wrapHandler = (fn: RouteHandler): express.RequestHandler => {
     req.socket.on('close', abortListener);
 
     try {
-      const response = await fn(req.query, req.body, abortController.signal);
+      const response = await fn(
+        req.query,
+        req.body,
+        abortController.signal,
+        req.files
+      );
 
       if (abortController.signal.aborted) {
         return;
@@ -100,6 +109,37 @@ app.get(
   })
 );
 
+app.put(
+  '/archive/upload',
+  wrapHandler(async (params, body, signal, files) => {
+    if (!files) {
+      throw new Error('No File sent in request');
+    }
+    for (const [name, file] of Object.entries(files)) {
+      const resolvedName = resolveFiles([name])[0].resolved;
+      const fileObj = Array.isArray(file) ? file[0] : file;
+      fs.writeFileSync(resolvedName, fileObj.data);
+    }
+    return { type: 'json', body: { success: true } };
+  })
+);
+
+app.put(
+  '/archive/move',
+  wrapHandler(async (params, body, signal) => {
+    const fromFile = body.fromFile;
+    const toFile = body.toFile;
+    if (!fromFile || !toFile) {
+      throw new Error('Incorrect parameters');
+    }
+    const resolvedFrom = resolveFiles([fromFile])[0].resolved;
+    const resolvedTo = resolveFiles([toFile])[0].resolved;
+
+    fs.renameSync(resolvedFrom, resolvedTo);
+
+    return { type: 'json', body: { base: path.basename(resolvedTo) } };
+  })
+);
 app.get(
   '/keys',
   wrapHandler(async (params, body, signal) => {
@@ -142,6 +182,26 @@ app.post(
       await archive.close();
     }
     return { type: 'json', body: { success: true } };
+  })
+);
+
+app.get(
+  '/archive/download',
+  wrapHandler(async (params, body, signal) => {
+    const files = getFiles(params);
+
+    if (files.length > 1) {
+      throw new Error('TOO MANY FILES');
+    }
+
+    const mimeType = mime.getType(files[0].resolved);
+    const stream = fs.createReadStream(files[0].resolved);
+
+    return {
+      type: 'stream',
+      mime: mimeType || '',
+      body: stream,
+    };
   })
 );
 
