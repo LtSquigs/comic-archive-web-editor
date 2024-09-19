@@ -8,6 +8,7 @@ import {
   JoinPair,
   EntryMap,
   APIKeys,
+  Merge,
 } from '../shared/types';
 
 let abortController: AbortController | null = null;
@@ -105,6 +106,30 @@ export class API {
     });
   }
 
+  static async mergeArchives(
+    target: string,
+    merges: Merge[]
+  ): Promise<APIResult<string>> {
+    return abortableRequest(async (signal): Promise<APIResult<string>> => {
+      const resp = await fetch(`/archive/merge`, {
+        method: 'PUT',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ target, merges }),
+        signal,
+      });
+      const body = await resp.json();
+
+      if (body.error) {
+        return { error: true, errorStr: body.error };
+      }
+
+      return { data: body.success, error: false };
+    });
+  }
+
   static async getKeys(): Promise<APIResult<APIKeys>> {
     const resp = await fetch(`/keys`);
     const body = await resp.json();
@@ -137,8 +162,10 @@ export class API {
     });
   }
 
-  static async getEntries(): Promise<APIResult<Entry[]>> {
-    if (API.files.length !== 1) {
+  static async getEntries(
+    file: string | null = null
+  ): Promise<APIResult<Entry[]>> {
+    if (!file && API.files.length !== 1) {
       return { data: [], error: false };
     }
 
@@ -149,7 +176,7 @@ export class API {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ files: API.files }),
+        body: JSON.stringify({ files: file ? [file] : API.files }),
         signal,
       });
       const body = await resp.json();

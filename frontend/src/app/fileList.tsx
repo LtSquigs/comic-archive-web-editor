@@ -233,7 +233,7 @@ export const FileList = forwardRef(function FileList(
       ids = [ids];
     }
 
-    onUpdateSelected(ids, ids.length === 1 ? fileMap.current[ids[0]] : null);
+    onUpdateSelected(ids, fileMap.current[ids[0]]);
   };
 
   const selectGroups: string[][] = [];
@@ -268,13 +268,13 @@ export const FileList = forwardRef(function FileList(
         folderElements = renderTree(tree.children, expanded, tree.id);
 
         treeElements.push(
-          <Folder element={tree.name} value={tree.id}>
+          <Folder element={tree.name} value={tree.id} className="text-nowrap">
             {folderElements}
           </Folder>
         );
       } else {
         treeElements.push(
-          <File value={tree.id}>
+          <File value={tree.id} className="text-nowrap">
             <span>{tree.name}</span>
           </File>
         );

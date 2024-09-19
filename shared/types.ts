@@ -18,6 +18,19 @@ export type EntryMap = {
   [key: string]: string;
 };
 
+export type MergeRequest = {
+  target: string;
+  merges: Merge[];
+};
+
+export type Merge = {
+  file: string;
+  entries: {
+    old: string;
+    new: string;
+  }[];
+};
+
 export type JoinPair = {
   leftImage: string;
   rightImage: string;

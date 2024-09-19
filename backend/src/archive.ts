@@ -9,11 +9,20 @@ import {
   REGISTERED_READERS,
   REGISTERED_WRITERS,
   removeExif,
+  resolveFiles,
   SERVER_DIR,
 } from './lib.js';
-import { Entry, EntryMap, JoinPair, Split } from './shared/types.js';
+import {
+  Entry,
+  EntryMap,
+  JoinPair,
+  Merge,
+  MergeRequest,
+  Split,
+} from './shared/types.js';
 import { Readable } from 'stream';
 import getRawBody from 'raw-body';
+import { CBZReader, CBZWriter } from './cbz.js';
 
 // Very basic cache that just keeps the last opened CBZ read in memory
 // between requests. The usual use case is to get many requests for the
@@ -523,5 +532,43 @@ export class Archive {
   // Saves file to disk and marks data as dirty for future reads
   async markDirty(): Promise<void> {
     this.dirty = true;
+  }
+}
+
+export class Merger {
+  file: string;
+  merges: Merge[];
+  signal?: AbortSignal;
+
+  constructor(request: MergeRequest, signal?: AbortSignal) {
+    this.file = resolveFiles([request.target])[0].resolved;
+    this.merges = request.merges;
+    this.signal = signal;
+  }
+
+  async merge() {
+    const writer = new CBZWriter(this.signal);
+
+    for (const merge of this.merges) {
+      const file = resolveFiles([merge.file])[0];
+      const reader = new CBZReader(file.resolved, this.signal);
+      try {
+        const entryMap: { [key: string]: ArchiveEntry } = {};
+
+        for (const entry of await reader.entries()) {
+          entryMap[entry.filename] = entry;
+        }
+
+        for (const entry of merge.entries) {
+          if (entryMap[entry.old]) {
+            writer.add(entry.new, await entryMap[entry.old].getData());
+          }
+        }
+      } finally {
+        await reader.close();
+      }
+    }
+
+    await writer.write(this.file);
   }
 }

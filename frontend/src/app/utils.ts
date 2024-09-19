@@ -255,3 +255,57 @@ export const changeImageNum = (entry: Entry, change: number) => {
 
   return entry.entryName;
 };
+
+export const getEntryNumber = (
+  name: string
+): { prefix: string; number: number | null; secondNumber: number | null } => {
+  let parts = name.match(/^([\d\.]+)-([\d\.]+)$/);
+  if (parts) {
+    return {
+      prefix: '',
+      number: parseFloat(parts[1]),
+      secondNumber: parseFloat(parts[2]),
+    };
+  }
+  // todo match range
+  if (name.match(/^[\d\.]+$/)) {
+    return { prefix: '', number: parseFloat(name), secondNumber: null };
+  }
+
+  parts = name.match(/([\d\.]+)-([\d\.]+)$/);
+  if (parts) {
+    return {
+      prefix: name.replace(/([\d\.]+)-([\d\.]+)$/, ''),
+      number: parseFloat(parts[1]),
+      secondNumber: parseFloat(parts[2]),
+    };
+  }
+
+  parts = name.match(/([\d\.])+$/);
+  if (parts) {
+    return {
+      prefix: name.replace(/[\d\.]+$/, ''),
+      number: parseFloat(parts[1]),
+      secondNumber: null,
+    };
+  }
+
+  return { prefix: name, number: null, secondNumber: null };
+};
+
+export const range = (a: number, b: number) => {
+  const rangeArr = [];
+  if (a > b) {
+    for (let x = b; x <= a; x++) {
+      rangeArr.push(x);
+    }
+
+    return rangeArr;
+  }
+
+  for (let x = a; x <= b; x++) {
+    rangeArr.push(x);
+  }
+
+  return rangeArr;
+};

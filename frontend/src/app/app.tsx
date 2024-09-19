@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import DeleteButton from './deleteButton';
 import DownloadButton from './downloadButton';
 import MoveButton from './moveButton';
+import MergeButton from './mergeButton';
 
 export function App() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -338,6 +339,16 @@ export function App() {
                   <MoveButton
                     file={selectedFiles[0]}
                     onMoved={async (newFile, newFileName) => {
+                      await refreshFiles(newFile);
+                    }}
+                  />
+                ) : null}
+
+                {selectedFiles.length > 1 ? (
+                  <MergeButton
+                    fileName={selectedFilename || ''}
+                    files={selectedFiles}
+                    onMerge={async (newFile) => {
                       await refreshFiles(newFile);
                     }}
                   />

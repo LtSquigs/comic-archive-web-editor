@@ -1,4 +1,4 @@
-import { Archive } from './archive.js';
+import { Archive, Merger } from './archive.js';
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import fs from 'fs';
@@ -181,6 +181,16 @@ app.post(
     } finally {
       await archive.close();
     }
+    return { type: 'json', body: { success: true } };
+  })
+);
+
+app.put(
+  '/archive/merge',
+  wrapHandler(async (params, body, signal) => {
+    const merger = new Merger(body, signal);
+    await merger.merge();
+
     return { type: 'json', body: { success: true } };
   })
 );
