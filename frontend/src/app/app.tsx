@@ -278,7 +278,7 @@ export function App() {
                       style={{ height: 'calc(100vh - 40px - 2.5rem)' }}
                     >
                       <EntriesEditor
-                        entries={entries}
+                        entries={entries.filter((entry) => !entry.isDirectory)}
                         onEntriesChanged={refreshEntries}
                       />
                     </ScrollArea>
@@ -346,7 +346,6 @@ export function App() {
 
                 {selectedFiles.length > 1 ? (
                   <MergeButton
-                    fileName={selectedFilename || ''}
                     files={selectedFiles}
                     onMerge={async (newFile) => {
                       await refreshFiles(newFile);

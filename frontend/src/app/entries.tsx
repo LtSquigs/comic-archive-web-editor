@@ -53,7 +53,8 @@ const createEntryMap = (
   entries: Entry[],
   replacementPatterns: string[] = [],
   stripWhitespace: boolean = true,
-  normalize: boolean = true
+  normalize: boolean = true,
+  flattenRename: boolean = true
 ): string[] => {
   const regexs: { regex: RegExp; replacement: string }[] = replacementPatterns
     .map((pattern) => {
@@ -81,6 +82,8 @@ const createEntryMap = (
       }
     })
     .filter((x) => x !== null);
+
+  let lastSeenNumber = -1;
 
   const renamedEntries = entries.map((entry) => {
     if (entry.isDirectory) {
@@ -114,16 +117,20 @@ const createEntryMap = (
       let num = null;
       const groups = entry.baseName.match(rangeRegex);
       if (groups) {
-        const num1 = parseFloat(groups[1]);
-        const num2 = parseFloat(groups[2]);
+        const num1 = groups[1] === '' ? Number.NaN : Number(groups[1]);
+        const num2 = groups[2] === '' ? Number.NaN : Number(groups[2]);
         if (num1 > num2) {
           num = num1;
         } else {
           num = num2;
         }
       } else {
-        num = parseFloat(entry.baseName);
+        num = entry.baseName === '' ? Number.NaN : Number(entry.baseName);
       }
+      if (num <= lastSeenNumber) {
+        num = lastSeenNumber + 1;
+      }
+      lastSeenNumber = num;
       if (isNaN(num)) {
         return max;
       }
@@ -136,6 +143,7 @@ const createEntryMap = (
     }, null as null | number);
   }
 
+  lastSeenNumber = -1;
   let maxDigits = null;
   if (maxNumber !== null) {
     maxDigits = Math.floor(Math.log10(maxNumber)) + 1;
@@ -145,32 +153,41 @@ const createEntryMap = (
     let baseName = entry.baseName;
     const groups = baseName.match(rangeRegex);
 
-    if (groups) {
-      let num1str = groups[1];
-      let num2str = groups[2];
-      let num1 = parseFloat(num1str);
-      let num2 = parseFloat(num2str);
+    if (normalize) {
+      if (groups) {
+        let num1str = groups[1];
+        let num2str = groups[2];
+        let num1 = num1str === '' ? Number.NaN : Number(num1str);
+        let num2 = num2str === '' ? Number.NaN : Number(num2str);
+        let diff = num2 - num1;
 
-      if (maxDigits !== null && !isNaN(num1)) {
-        const parts = num1.toString().split('.');
-        parts[0] = parts[0].padStart(maxDigits, '0');
-        num1str = parts.join('.');
-      }
+        if (maxDigits !== null && !isNaN(num1)) {
+          if (num1 <= lastSeenNumber) num1 = lastSeenNumber + 1;
+          lastSeenNumber = num1;
+          const parts = num1.toString().split('.');
+          parts[0] = parts[0].padStart(maxDigits, '0');
+          num1str = parts.join('.');
 
-      if (maxDigits !== null && !isNaN(num2)) {
-        const parts = num2.toString().split('.');
-        parts[0] = parts[0].padStart(maxDigits, '0');
-        num2str = parts.join('.');
-      }
+          if (maxDigits !== null && !isNaN(num2)) {
+            num2 = num1 + diff;
+            lastSeenNumber = num2;
+            const parts = num2.toString().split('.');
+            parts[0] = parts[0].padStart(maxDigits, '0');
+            num2str = parts.join('.');
+          }
+        }
 
-      baseName = num1str + '-' + num2str;
-    } else {
-      let num = parseFloat(baseName);
+        baseName = num1str + '-' + num2str;
+      } else {
+        let num = baseName === '' ? Number.NaN : Number(baseName);
 
-      if (maxDigits !== null && !isNaN(num)) {
-        const parts = num.toString().split('.');
-        parts[0] = parts[0].padStart(maxDigits, '0');
-        baseName = parts.join('.');
+        if (maxDigits !== null && !isNaN(num)) {
+          if (num <= lastSeenNumber) num = lastSeenNumber + 1;
+          lastSeenNumber = num;
+          const parts = num.toString().split('.');
+          parts[0] = parts[0].padStart(maxDigits, '0');
+          baseName = parts.join('.');
+        }
       }
     }
 
@@ -180,7 +197,7 @@ const createEntryMap = (
 
     const fileName = baseName + entry.extName;
 
-    if (entry.dir === null) {
+    if (entry.dir === null || flattenRename) {
       return fileName;
     }
 
@@ -198,6 +215,7 @@ export function EntriesEditor({
   const [mappedEntries, setMappedEntries] = useState<string[]>([]);
   const [stripWhitespace, setStripWhitespace] = useState(true);
   const [normalize, setNormalize] = useState(true);
+  const [flattenRename, setFlattenRename] = useState(true);
   const [replacementPatterns, setReplacementPatterns] = useState<string>(
     defaultRemovalPatterns
   );
@@ -209,7 +227,8 @@ export function EntriesEditor({
         entries,
         replacementPatterns.split('\n'),
         stripWhitespace,
-        normalize
+        normalize,
+        flattenRename
       )
     );
   };
@@ -217,7 +236,7 @@ export function EntriesEditor({
   useEffect(() => {
     if (entries.length <= 1) return;
     refresh();
-  }, [entries, replacementPatterns, stripWhitespace, normalize]);
+  }, [entries, replacementPatterns, stripWhitespace, normalize, flattenRename]);
 
   const sendRemap = async () => {
     const map: { [key: string]: string } = {};
@@ -380,6 +399,28 @@ export function EntriesEditor({
                           e.g. if the largest number is 357. then 1 -{'>'} 001,
                           02 -{'>'} 002
                         </p>
+                      </TooltipContent>
+                    </TooltipPortal>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  defaultChecked
+                  onCheckedChange={(checked: boolean) => {
+                    setFlattenRename(checked);
+                  }}
+                />
+                <Label>Flatten Directories</Label>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger className="flex items-start">
+                      <InfoCircledIcon />
+                    </TooltipTrigger>
+                    <TooltipPortal>
+                      <TooltipContent>
+                        <p>Removes all directories when renaming entries</p>
                       </TooltipContent>
                     </TooltipPortal>
                   </Tooltip>
