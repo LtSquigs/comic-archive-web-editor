@@ -98,8 +98,8 @@ export function MergeButton({
               seenEntries[`${prefix};;;${secondNumber}`]
             ) {
               if (
-                entry.baseName.match(/comicinfo/gi) ||
-                entry.baseName.match(/cover/gi)
+                entry.baseName.match(/^comicinfo$/gi) ||
+                entry.baseName.match(/^cover$/gi)
               ) {
                 return null;
               }

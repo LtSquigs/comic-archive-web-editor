@@ -100,9 +100,7 @@ export function App() {
       }
 
       setEntries(entries.data);
-      setImageEntiries(
-        (entries.data || []).filter((entry) => entry.isImage && !entry.isCover)
-      );
+      setImageEntiries((entries.data || []).filter((entry) => entry.isImage));
 
       const metadata = await API.getMetadata();
       if (metadata.error) {
@@ -150,9 +148,7 @@ export function App() {
       return;
     }
     setEntries(entries.data);
-    setImageEntiries(
-      (entries.data || []).filter((entry) => entry.isImage && !entry.isCover)
-    );
+    setImageEntiries((entries.data || []).filter((entry) => entry.isImage));
   };
 
   const refreshMetadata = async () => {
@@ -264,7 +260,7 @@ export function App() {
                     >
                       <MetadataEditor
                         entries={(entries || []).filter(
-                          (entry) => entry.isImage && !entry.isCover
+                          (entry) => entry.isImage
                         )}
                         metadata={metadata}
                         files={selectedFiles}

@@ -127,7 +127,6 @@ export class Archive {
         extName: ext,
         isDirectory: entry.directory,
         isImage: isImage,
-        isCover: !!baseName.match(/cover/i),
         sep: path.sep,
       });
     }
@@ -277,7 +276,7 @@ export class Archive {
         let ext = path.extname(entry.filename);
         let base = path.basename(entry.filename, ext);
 
-        if (base.match(/cover/i)) {
+        if (base.match(/^cover$/i)) {
           cover = entry;
         }
       }
@@ -304,7 +303,7 @@ export class Archive {
       if (!entry.directory) {
         const ext = path.extname(entry.filename);
         const base = path.basename(entry.filename, ext);
-        if (base.match(/cover/i)) {
+        if (base.match(/^cover$/i)) {
           continue;
         }
 
