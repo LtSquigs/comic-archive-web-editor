@@ -309,3 +309,14 @@ export const range = (a: number, b: number) => {
 
   return rangeArr;
 };
+
+export const compareFiles = (a: string, b: string) => {
+  const aParts = a.split('.');
+  if (aParts.length > 1) aParts.pop();
+  const bParts = b.split('.');
+  if (bParts.length > 1) bParts.pop();
+
+  return aParts
+    .join('.')
+    .localeCompare(bParts.join('.'), undefined, { numeric: true });
+};

@@ -33,9 +33,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getEntryNumber, range } from './utils';
-import { number } from 'zod';
-import { Merge } from '@/shared/types';
+import { compareFiles, getEntryNumber, range } from './utils';
+import {
+  APIMetadata,
+  APIPage,
+  Entry,
+  Merge,
+  Metadata,
+  Page,
+} from '@/shared/types';
 
 export function MergeButton({
   files,
@@ -60,9 +66,7 @@ export function MergeButton({
 
   useEffect(() => {
     const sortedFiles = [...files];
-    sortedFiles.sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true })
-    );
+    sortedFiles.sort((a, b) => compareFiles(a, b));
     setItems(
       sortedFiles.map((file) => ({
         id: file,
@@ -75,17 +79,21 @@ export function MergeButton({
     let fileMap = [];
     const seenEntries: any = {};
     let lastNumber = 0;
+    const bookmarks: any = [];
+    let ignoreBookmarks = false;
     for (const { id: file } of items) {
       const entries = await API.getEntries(file);
-      if (entries.error) {
+      const metadata = await API.getMetadata(file);
+      if (metadata.error || entries.error) {
         toast({
           title: 'Task Failed',
           variant: 'destructive',
-          description: `Error occured while retrieving entries. Aborted merge: ${entries.errorStr}.`,
+          description: `Error occured while retrieving entries and metadata during merge.`,
         });
         setMerging(ActionState.NONE);
         return;
       }
+      let bookmarkAdded = false;
       fileMap.push({
         file,
         entries: entries.data
@@ -93,17 +101,14 @@ export function MergeButton({
             const { prefix, number, secondNumber } = getEntryNumber(
               entry.baseName
             );
+            const chapter = metadata.data.number;
+            const title = metadata.data.title;
+            if (!chapter) ignoreBookmarks = true;
             if (
               seenEntries[`${prefix};;;${number}`] ||
               seenEntries[`${prefix};;;${secondNumber}`]
             ) {
-              if (
-                entry.baseName.match(/^comicinfo$/gi) ||
-                entry.baseName.match(/^cover$/gi)
-              ) {
-                return null;
-              }
-
+              if (!entry.isImage) return null;
               if (number !== null && secondNumber !== null) {
                 if (secondNumber > number) {
                   const newNumber =
@@ -114,6 +119,10 @@ export function MergeButton({
                   range(newNumber, newSecondNumber).forEach((num) => {
                     seenEntries[`${prefix};;;${num}`] = true;
                   });
+                  if (!bookmarkAdded) {
+                    bookmarks.push([file, entry.entryName, chapter, title]);
+                    bookmarkAdded = true;
+                  }
                   return {
                     entry,
                     prefix,
@@ -129,6 +138,10 @@ export function MergeButton({
                 range(newNumber, newSecondNumber).forEach((num) => {
                   seenEntries[`${prefix};;;${num}`] = true;
                 });
+                if (!bookmarkAdded) {
+                  bookmarks.push([file, entry.entryName, chapter, title]);
+                  bookmarkAdded = true;
+                }
                 return {
                   entry,
                   prefix,
@@ -142,7 +155,10 @@ export function MergeButton({
                   lastNumber + 1 + (number - Math.floor(number));
                 lastNumber = Math.floor(newNumber);
                 seenEntries[`${prefix};;;${newNumber}`] = true;
-
+                if (!bookmarkAdded) {
+                  bookmarks.push([file, entry.entryName, chapter, title]);
+                  bookmarkAdded = true;
+                }
                 return {
                   entry,
                   prefix,
@@ -157,6 +173,11 @@ export function MergeButton({
                   continue;
                 }
                 seenEntries[`${newPrefix};;;${number}`] = true;
+
+                if (!bookmarkAdded) {
+                  bookmarks.push([file, entry.entryName, chapter, title]);
+                  bookmarkAdded = true;
+                }
                 return { entry, prefix: newPrefix, number, secondNumber };
               }
 
@@ -176,11 +197,20 @@ export function MergeButton({
             } else {
               seenEntries[`${prefix};;;${number}`] = true;
             }
+
+            if (entry.isImage) {
+              if (!bookmarkAdded) {
+                bookmarks.push([file, entry.entryName, chapter, title]);
+                bookmarkAdded = true;
+              }
+            }
             return { entry, prefix, number, secondNumber };
           })
           .filter((x) => x !== null),
       });
     }
+    const images: { file: string; originalName: string; finalName: string }[] =
+      [];
     const merges: Merge[] = fileMap.map((pair) => {
       return {
         file: pair.file,
@@ -191,30 +221,83 @@ export function MergeButton({
           }
 
           if (number !== null && secondNumber !== null) {
+            const newName =
+              prefix +
+              `${number}`.padStart(maxDigits, '0') +
+              `-${secondNumber}`.padStart(maxDigits, '0') +
+              entry.extName;
+            if (entry.isImage)
+              images.push({
+                file: pair.file,
+                originalName: entry.entryName,
+                finalName: newName,
+              });
             return {
               old: entry.entryName,
-              new:
-                prefix +
-                `${number}`.padStart(maxDigits, '0') +
-                `-${secondNumber}`.padStart(maxDigits, '0') +
-                entry.extName,
+              new: newName,
             };
           }
 
           if (number !== null) {
+            const newName =
+              prefix + `${number}`.padStart(maxDigits, '0') + entry.extName;
+            if (entry.isImage)
+              images.push({
+                file: pair.file,
+                originalName: entry.entryName,
+                finalName: newName,
+              });
             return {
               old: entry.entryName,
-              new:
-                prefix + `${number}`.padStart(maxDigits, '0') + entry.extName,
+              new: newName,
             };
           }
-
+          if (entry.isImage)
+            images.push({
+              file: pair.file,
+              originalName: entry.entryName,
+              finalName: prefix + entry.extName,
+            });
           return { old: entry.entryName, new: prefix + entry.extName };
         }),
       };
     });
 
+    images.sort((a, b) => compareFiles(a.finalName, b.finalName));
+
     const res = await API.mergeArchives(saveFile, merges);
+
+    if (!ignoreBookmarks) {
+      const pages = bookmarks.map((bookmark: any): APIPage => {
+        let file = bookmark[0];
+        let entryName = bookmark[1];
+        let chapter = bookmark[2];
+        let title = bookmark[3];
+
+        let page = images.findIndex(
+          (v) => v.originalName === entryName && v.file === file
+        );
+
+        if (page === -1) {
+          ignoreBookmarks = true;
+        }
+
+        return {
+          image: page,
+          bookmark: title
+            ? `Chapter ${chapter} - ${title}`
+            : `Chapter ${chapter}`,
+        };
+      });
+
+      if (!ignoreBookmarks) {
+        const newMetadata: APIMetadata = {
+          pages,
+        };
+
+        await API.setMetadata(newMetadata as Metadata, saveFile);
+      }
+    }
 
     toast({
       title: !res.error ? 'Task Finished' : 'Task Failed',

@@ -15,6 +15,7 @@ import { API } from './api';
 import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
+import { compareFiles } from './utils';
 
 const validKeys: { [Property in keyof BaseMetadata]: RegExp } = {
   title: /title/i,
@@ -131,9 +132,7 @@ export function BulkMetadata({ files }: { files: string[] }) {
     }
 
     const orderedFiles = [...files];
-    orderedFiles.sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true })
-    );
+    orderedFiles.sort((a, b) => compareFiles(a, b));
 
     const metadataMap: MetadataMap = {};
     for (let i = 0; i < data.length; i++) {

@@ -11,6 +11,7 @@ import { API } from './api';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import { useToast } from '@/hooks/use-toast';
 import UploadButton from './uploadButton';
+import { compareFiles } from './utils';
 
 type FileTree = {
   id: string;
@@ -37,9 +38,7 @@ const getFileTree = async (dir: string = '') => {
     };
   });
 
-  tree.sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true })
-  );
+  tree.sort((a, b) => compareFiles(a.name, b.name));
 
   return tree;
 };
@@ -212,9 +211,7 @@ export const FileList = forwardRef(function FileList(
       return;
     }
     setExpandedFolders((prevValue) => {
-      return [...prevValue, dir].sort((a, b) =>
-        a.localeCompare(b, undefined, { numeric: true })
-      );
+      return [...prevValue, dir].sort((a, b) => compareFiles(a, b));
     });
     const loadedDir = await loadSubfolders(dir, files);
     setFiles((preValue) => {

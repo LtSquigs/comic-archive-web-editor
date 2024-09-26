@@ -10,6 +10,7 @@ import {
   APIKeys,
   Merge,
 } from '../shared/types';
+import { compareFiles } from './utils';
 
 let abortController: AbortController | null = null;
 export const abortableRequest = async <T>(
@@ -188,7 +189,7 @@ export class API {
       const entries = body.entries;
 
       entries.sort((a: Entry, b: Entry) =>
-        a.entryName.localeCompare(b.entryName, undefined, { numeric: true })
+        compareFiles(a.entryName, b.entryName)
       );
 
       return { data: body.entries, error: false };
@@ -262,8 +263,8 @@ export class API {
     });
   }
 
-  static async getMetadata(): Promise<APIResult<APIMetadata>> {
-    if (API.files.length < 1) {
+  static async getMetadata(file?: string): Promise<APIResult<APIMetadata>> {
+    if (!file && API.files.length < 1) {
       return { data: {}, error: false };
     }
 
@@ -274,7 +275,7 @@ export class API {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ files: API.files }),
+        body: JSON.stringify({ files: file ?? API.files }),
         signal,
       });
       const body = await resp.json();
@@ -287,8 +288,11 @@ export class API {
     });
   }
 
-  static async setMetadata(metadata: Metadata): Promise<APIResult<boolean>> {
-    if (API.files.length < 1) {
+  static async setMetadata(
+    metadata: Metadata,
+    file?: string
+  ): Promise<APIResult<boolean>> {
+    if (!file && API.files.length < 1) {
       return { error: false, data: true };
     }
 
@@ -299,7 +303,7 @@ export class API {
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ files: API.files, metadata }),
+        body: JSON.stringify({ files: file ?? API.files, metadata }),
         signal,
       });
       const body = await resp.json();
