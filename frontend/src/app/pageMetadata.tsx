@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
+  Cross1Icon,
   InfoCircledIcon,
   ResetIcon,
   TrashIcon,
@@ -44,6 +45,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { PlusIcon } from 'lucide-react';
 
 function PageMetadataEditor({
   pageNumber,
@@ -158,6 +170,8 @@ export function PageMetadata({
   const [toDelete, setToDelete] = useState<string[]>([]);
   const [currentEntry, setCurrentEntry] = useState<Entry>(entries[0]);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [bookmarkImageToAdd, setBookmarkImageToAdd] = useState('');
+  const [bookmarkToAdd, setBookmarkToAdd] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -197,6 +211,49 @@ export function PageMetadata({
       window.removeEventListener('keydown', handleKeyPress);
     };
   });
+
+  const addBookmark = () => {
+    setCurrentMetadata((prevValue) => {
+      const newValue = { ...prevValue };
+      const imageToAdd = parseInt(bookmarkImageToAdd, 10);
+
+      if (isNaN(imageToAdd) || !bookmarkToAdd) {
+        return prevValue;
+      }
+
+      if (!newValue.pages) {
+        newValue.pages = [];
+      }
+
+      const pageEntry = newValue.pages.find((x) => x.image == imageToAdd);
+      if (pageEntry) {
+        pageEntry.bookmark = bookmarkToAdd;
+      } else {
+        newValue.pages.push({
+          image: imageToAdd,
+          bookmark: bookmarkToAdd,
+        });
+
+        newValue.pages.sort(
+          (a, b) => (a.image as number) - (b.image as number)
+        );
+      }
+
+      return newValue;
+    });
+  };
+
+  const removeBookmark = (bookmarkIdx: number) => {
+    if (!currentMetadata.pages) return;
+    const pageEntry = currentMetadata.pages.find((x) => x.image == bookmarkIdx);
+    if (pageEntry) {
+      setCurrentMetadata((prevValue) => {
+        const newValue = { ...prevValue };
+        pageEntry.bookmark = null;
+        return newValue;
+      });
+    }
+  };
 
   const onUpdateMetadata = async (metadata: APIMetadata) => {
     setMetadataStatus(ActionState.INPROGRESS);
@@ -289,6 +346,86 @@ export function PageMetadata({
     await onPagesDeleted();
   };
 
+  const renderBookmarkEditor = (index: number) => {
+    const pages = currentMetadata.pages || [];
+    const bookMarks = pages
+      .map((p) => {
+        if (p.bookmark) {
+          return {
+            image: p.image as number,
+            name: (entries[p.image as number] || {}).entryName,
+            bookmark: p.bookmark as string,
+          };
+        }
+        return null;
+      })
+      .filter((x) => x != null);
+
+    bookMarks.sort((a, b) => a.image - b.image);
+
+    return (
+      <>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Page #</TableHead>
+              <TableHead>Entry Name</TableHead>
+              <TableHead>Bookmark</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {bookMarks.map((bookmark) => {
+              return (
+                <TableRow>
+                  <TableCell>{bookmark.image}</TableCell>
+                  <TableCell>{bookmark.name}</TableCell>
+                  <TableCell>{bookmark.bookmark}</TableCell>
+                  <TableCell>
+                    <Cross1Icon
+                      className="cursor-pointer"
+                      onClick={() => {
+                        removeBookmark(bookmark.image);
+                      }}
+                    ></Cross1Icon>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            <TableRow>
+              <TableCell>
+                <Input
+                  value={bookmarkImageToAdd}
+                  onChange={(e) => setBookmarkImageToAdd(e.target.value)}
+                ></Input>
+              </TableCell>
+              <TableCell></TableCell>
+              <TableCell>
+                <Input
+                  value={bookmarkToAdd}
+                  onChange={(e) => setBookmarkToAdd(e.target.value)}
+                ></Input>
+              </TableCell>
+              <TableCell>
+                <PlusIcon
+                  className="cursor-pointer"
+                  onClick={addBookmark}
+                ></PlusIcon>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+
+        <Button className="mt-2" onClick={saveMetadata}>
+          {metadataStatus === ActionState.INPROGRESS ? (
+            <UpdateIcon className="mr-1 animate-spin" />
+          ) : null}{' '}
+          Save Bookmarks (And Metadata)
+        </Button>
+      </>
+    );
+  };
+
   const renderMetadataEditor = (index: number) => {
     const pages = currentMetadata.pages || [];
     const pageMetadata = pages.find((val) => val.image === index) || {
@@ -360,52 +497,50 @@ export function PageMetadata({
     };
 
     return (
-      <ScrollArea className="h-full">
-        <div className="pl-4 pr-4">
-          <PageMetadataEditor
-            onChangeField={updateMetadataField}
-            pageNumber={index}
-            pageMetadata={pageMetadata}
-          ></PageMetadataEditor>
+      <div className="">
+        <PageMetadataEditor
+          onChangeField={updateMetadataField}
+          pageNumber={index}
+          pageMetadata={pageMetadata}
+        ></PageMetadataEditor>
+        <Separator></Separator>
+        <div className="mt-2 flex-col flex gap-4">
+          <Button disabled={!metadataDirty} onClick={saveMetadata}>
+            {metadataStatus === ActionState.INPROGRESS ? (
+              <UpdateIcon className="mr-1 animate-spin" />
+            ) : null}{' '}
+            Save All Page Metadata
+          </Button>
           <Separator></Separator>
-          <div className="mt-2 flex-col flex gap-4">
-            <Button disabled={!metadataDirty} onClick={saveMetadata}>
-              {metadataStatus === ActionState.INPROGRESS ? (
-                <UpdateIcon className="mr-1 animate-spin" />
-              ) : null}{' '}
-              Save All Page Metadata
-            </Button>
-            <Separator></Separator>
-            <p className="text-xs text-muted-foreground">
-              Select images to delete with trash icon (or press 'd' on image).
-              This also saves in progress metadata.
-            </p>
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={renumberDeletes}
-                onCheckedChange={(checked: boolean) => {
-                  setRenumberDeletes(checked);
-                }}
-              />
-              <Label>Renumber Images On Delete</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-start">
-                    <InfoCircledIcon />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      This will try to renumber the pages according to how many
-                      were deleted.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {renderDeleteAlert()}
+          <p className="text-xs text-muted-foreground">
+            Select images to delete with trash icon (or press 'd' on image).
+            This also saves in progress metadata.
+          </p>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={renumberDeletes}
+              onCheckedChange={(checked: boolean) => {
+                setRenumberDeletes(checked);
+              }}
+            />
+            <Label>Renumber Images On Delete</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger className="flex items-start">
+                  <InfoCircledIcon />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    This will try to renumber the pages according to how many
+                    were deleted.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+          {renderDeleteAlert()}
         </div>
-      </ScrollArea>
+      </div>
     );
   };
 
@@ -475,7 +610,20 @@ export function PageMetadata({
       controls={(index: number) => {
         return (
           <div className="max-h-full h-full grow">
-            {renderMetadataEditor(index)}
+            <ScrollArea className="h-full ">
+              <Tabs defaultValue="metadata">
+                <TabsList className="ml-4">
+                  <TabsTrigger value="metadata">Metadata</TabsTrigger>
+                  <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
+                </TabsList>
+                <TabsContent value="metadata" className="pl-4 pr-4">
+                  {renderMetadataEditor(index)}
+                </TabsContent>
+                <TabsContent value="bookmarks" className="pl-4 pr-4">
+                  {renderBookmarkEditor(index)}
+                </TabsContent>
+              </Tabs>
+            </ScrollArea>
           </div>
         );
       }}
