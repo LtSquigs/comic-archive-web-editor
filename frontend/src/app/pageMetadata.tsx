@@ -376,8 +376,8 @@ export function PageMetadata({
     bookMarks.sort((a, b) => a.image - b.image);
 
     return (
-      <div className="max-w-[600px]">
-        <Table className="table-fixed">
+      <div>
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">Page #</TableHead>
@@ -391,8 +391,12 @@ export function PageMetadata({
               return (
                 <TableRow>
                   <TableCell>{bookmark.image}</TableCell>
-                  <TableCell>{bookmark.name}</TableCell>
-                  <TableCell>{bookmark.bookmark}</TableCell>
+                  <TableCell className="max-w-[100px]">
+                    {bookmark.name}
+                  </TableCell>
+                  <TableCell className="max-w-[300px]">
+                    {bookmark.bookmark}
+                  </TableCell>
                   <TableCell>
                     <Cross1Icon
                       className="cursor-pointer"
@@ -409,6 +413,7 @@ export function PageMetadata({
                 <Input
                   value={bookmarkImageToAdd}
                   onChange={(e) => setBookmarkImageToAdd(e.target.value)}
+                  type="number"
                 ></Input>
               </TableCell>
               <TableCell>
@@ -433,19 +438,24 @@ export function PageMetadata({
           </TableBody>
         </Table>
 
-        <div className="text-xs text-muted-foreground">
-          When adding a bookmark, you can either supply a page # or an entry
-          name, if an entry name is supplied we will attempt to fuzzy match the
-          entry to add the bookmark, and return the first one. Example: "006"
-          will match "006.jpg" or "006-007.jpg".
-        </div>
-
         <Button className="mt-2" onClick={saveMetadata}>
           {metadataStatus === ActionState.INPROGRESS ? (
             <UpdateIcon className="mr-1 animate-spin" />
           ) : null}{' '}
           Save Bookmarks (And Metadata)
         </Button>
+
+        <div className="text-xs text-muted-foreground max-w-[500px] space-y-2 mt-2">
+          <p>
+            When adding a bookmark, you can either supply a page # or an entry
+            name
+          </p>
+          <p>
+            If an entry name is supplied we will attempt to fuzzy match the
+            first entry to add the bookmark.
+          </p>
+          <p>Example: "006" will match "006.jpg" or "006-007.jpg".</p>
+        </div>
       </div>
     );
   };
