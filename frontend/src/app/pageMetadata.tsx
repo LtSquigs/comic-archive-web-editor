@@ -172,6 +172,7 @@ export function PageMetadata({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [bookmarkImageToAdd, setBookmarkImageToAdd] = useState('');
   const [bookmarkToAdd, setBookmarkToAdd] = useState('');
+  const [bookmarkEntryToAdd, setBookmarkEntryToAdd] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -215,7 +216,18 @@ export function PageMetadata({
   const addBookmark = () => {
     setCurrentMetadata((prevValue) => {
       const newValue = { ...prevValue };
-      const imageToAdd = parseInt(bookmarkImageToAdd, 10);
+      let imageToAdd = parseInt(bookmarkImageToAdd, 10);
+      const entryToAdd = bookmarkEntryToAdd;
+
+      if (entryToAdd) {
+        const entryIdx = entries.findIndex((x) =>
+          x.entryName.includes(entryToAdd)
+        );
+
+        if (entryIdx != -1) {
+          imageToAdd = entryIdx;
+        }
+      }
 
       if (isNaN(imageToAdd) || !bookmarkToAdd) {
         return prevValue;
@@ -399,7 +411,12 @@ export function PageMetadata({
                   onChange={(e) => setBookmarkImageToAdd(e.target.value)}
                 ></Input>
               </TableCell>
-              <TableCell></TableCell>
+              <TableCell>
+                <Input
+                  value={bookmarkEntryToAdd}
+                  onChange={(e) => setBookmarkEntryToAdd(e.target.value)}
+                ></Input>
+              </TableCell>
               <TableCell>
                 <Input
                   value={bookmarkToAdd}
@@ -415,6 +432,13 @@ export function PageMetadata({
             </TableRow>
           </TableBody>
         </Table>
+
+        <div className="text-xs text-muted-foreground">
+          When adding a bookmark, you can either supply a page # or an entry
+          name, if an entry name is supplied we will attempt to fuzzy match the
+          entry to add the bookmark, and return the first one. Example: "006"
+          will match "006.jpg" or "006-007.jpg".
+        </div>
 
         <Button className="mt-2" onClick={saveMetadata}>
           {metadataStatus === ActionState.INPROGRESS ? (
