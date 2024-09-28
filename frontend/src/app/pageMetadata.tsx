@@ -376,14 +376,14 @@ export function PageMetadata({
     bookMarks.sort((a, b) => a.image - b.image);
 
     return (
-      <>
-        <Table>
+      <div className="max-w-[600px]">
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Page #</TableHead>
+              <TableHead className="w-[100px]">Page #</TableHead>
               <TableHead>Entry Name</TableHead>
               <TableHead>Bookmark</TableHead>
-              <TableHead></TableHead>
+              <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -446,7 +446,7 @@ export function PageMetadata({
           ) : null}{' '}
           Save Bookmarks (And Metadata)
         </Button>
-      </>
+      </div>
     );
   };
 
