@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActionState } from './types';
-import { Entry, JoinPair } from '../shared/types';
+import { ActionState, APIResult } from './types';
+import {
+  APIMetadata,
+  APIPage,
+  Entry,
+  JoinPair,
+  Metadata,
+} from '../shared/types';
 
 import { Button } from '@/components/ui/button';
 import { Link1Icon } from '@radix-ui/react-icons';
@@ -24,10 +30,12 @@ let defaultDirection = 'RTL';
 export function JoinPages({
   entries,
   file,
+  metadata,
   onJoin,
 }: {
   entries: Entry[];
   file: string;
+  metadata: APIMetadata;
   onJoin: () => {};
 }) {
   const [joinStatus, setJoinStatus] = useState(ActionState.NONE);
@@ -41,9 +49,17 @@ export function JoinPages({
   const { toast } = useToast();
   const joinList = useRef([] as JoinPair[]);
   const [currentEntry, setCurrentEntry] = useState(entries[0]);
+  const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
   const [nextEntry, setNextEntry] = useState(
     entries.length > 1 ? entries[1] : null
   );
+
+  useEffect(() => {
+    const onlyPages = {
+      pages: metadata.pages,
+    };
+    setCurrentMetadata(onlyPages);
+  }, [metadata, entries]);
 
   useEffect(() => {
     const handleKeyPress = async (event: KeyboardEvent) => {
@@ -129,13 +145,74 @@ export function JoinPages({
     if (joinList.current.length >= 1) {
       setJoinStatus(ActionState.INPROGRESS);
       const join = await API.joinImages(joinList.current, gap, gapColor);
+      const pageIndexes = joinList.current
+        .map((pair) => {
+          const leftIdx = entries.findIndex(
+            (item) => item.entryName == pair.leftImage
+          );
+          const rightIdx = entries.findIndex(
+            (item) => item.entryName == pair.rightImage
+          );
+
+          if (leftIdx < rightIdx) return leftIdx;
+          return rightIdx;
+        })
+        .filter((x) => x >= 0);
+
+      const newMetadata = { ...currentMetadata };
+      let changed = false;
+      if (newMetadata.pages && newMetadata.pages.length > 0) {
+        newMetadata.pages.sort(
+          (a, b) => (a.image as number) - (b.image as number)
+        );
+        const newPages: APIPage[] = [];
+
+        newMetadata.pages.forEach((page) => {
+          const pageShift = pageIndexes.reduce(
+            (accumulator, idx) =>
+              idx < (page.image as number) ? accumulator + 1 : accumulator,
+            0
+          );
+
+          if (pageShift > 0) {
+            changed = true;
+            const existingPage = newPages.find(
+              (item) => item.image == (page.image as number) - pageShift
+            );
+            if (!existingPage) {
+              page.image = (page.image as number) - pageShift;
+              newPages.push(page);
+            }
+          } else {
+            newPages.push(page);
+          }
+        });
+
+        if (newPages.length > 0) {
+          newMetadata.pages = newPages;
+        } else {
+          newMetadata.pages = undefined;
+        }
+      }
+      let metadata: APIResult<boolean> = { error: false, data: true };
+      if (changed) {
+        metadata = await API.setMetadata(newMetadata as Metadata);
+        setCurrentMetadata(newMetadata);
+      }
       setJoinStatus(ActionState.NONE);
       toast({
-        title: !join.error ? 'Task Finished' : 'Task Failed',
-        variant: !join.error ? 'default' : 'destructive',
-        description: !join.error
-          ? 'Joining images completed.'
-          : `Error occured while joining images: ${join.errorStr}.`,
+        title: !join.error && !metadata.error ? 'Task Finished' : 'Task Failed',
+        variant: !join.error && !metadata.error ? 'default' : 'destructive',
+        description:
+          !join.error && !metadata.error
+            ? 'Joining images completed.'
+            : `Error occured while joining images: ${
+                join.error
+                  ? join.errorStr
+                  : metadata.error
+                  ? metadata.errorStr
+                  : ''
+              }.`,
       });
     }
     joinList.current = [];

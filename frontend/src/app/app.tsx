@@ -299,6 +299,7 @@ export function App() {
                     <JoinPages
                       entries={imageEntries}
                       file={selectedFiles[0]}
+                      metadata={metadata}
                       onJoin={refreshEntries}
                     />
                   )}

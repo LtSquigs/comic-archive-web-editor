@@ -5,6 +5,7 @@ import temp from 'temp';
 import { Readable, Writable } from 'stream';
 import yauzl, { Entry, ZipFile } from 'yauzl';
 import { Mutex } from 'async-mutex';
+import path from 'path';
 
 temp.track();
 
@@ -127,7 +128,8 @@ export class CBZReader implements ArchiveReader {
               // OSX Util Makes these weird directories that we just dont care about
               if (
                 entry.fileName.startsWith('__MACOSX/') ||
-                entry.fileName.endsWith('.DS_STORE')
+                entry.fileName.endsWith('.DS_STORE') ||
+                path.basename(entry.fileName).startsWith('.')
               ) {
                 zipFile.readEntry();
                 return;

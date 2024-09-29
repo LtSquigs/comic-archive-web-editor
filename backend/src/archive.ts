@@ -131,14 +131,18 @@ export class Archive {
       });
     }
 
-    return entries.sort((item1, item2) => {
-      if (item1.entryName > item2.entryName) {
-        return 1;
-      }
-      if (item1.entryName < item2.entryName) {
-        return -1;
-      }
-      return 0;
+    return entries.sort((a, b) => {
+      const aExt = path.extname(a.entryName);
+      const bExt = path.extname(b.entryName);
+      const aName = a.entryName.replace(
+        new RegExp(aExt.replace('.', '\\.')) + '$',
+        ''
+      );
+      const bName = b.entryName.replace(
+        new RegExp(bExt.replace('.', '\\.')) + '$',
+        ''
+      );
+      return aName.localeCompare(bName, undefined, { numeric: true });
     });
   }
 
@@ -260,9 +264,19 @@ export class Archive {
     if (this.dirty) await this.reload();
 
     const entries = await this.reader.entries();
-    entries.sort((a, b) =>
-      a.filename.localeCompare(b.filename, undefined, { numeric: true })
-    );
+    entries.sort((a, b) => {
+      const aExt = path.extname(a.filename);
+      const bExt = path.extname(b.filename);
+      const aName = a.filename.replace(
+        new RegExp(aExt.replace('.', '\\.')) + '$',
+        ''
+      );
+      const bName = b.filename.replace(
+        new RegExp(bExt.replace('.', '\\.')) + '$',
+        ''
+      );
+      return aName.localeCompare(bName, undefined, { numeric: true });
+    });
     let cover = null;
 
     for (const entry of entries) {

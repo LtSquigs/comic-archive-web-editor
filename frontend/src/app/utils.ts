@@ -311,12 +311,20 @@ export const range = (a: number, b: number) => {
 };
 
 export const compareFiles = (a: string, b: string) => {
-  const aParts = a.split('.');
-  if (aParts.length > 1) aParts.pop();
-  const bParts = b.split('.');
-  if (bParts.length > 1) bParts.pop();
+  const a1Ext = a.match(/\.[^\\/\.]+$/);
+  let aStripped = a;
+  if (a1Ext) {
+    aStripped = a.replace(new RegExp(a1Ext[0].replace('.', '\\.')), '');
+  }
 
-  return aParts
-    .join('.')
-    .localeCompare(bParts.join('.'), undefined, { numeric: true });
+  const b1Ext = a.match(/\.[^\\/\.]+$/);
+  let bStripped = a;
+  if (b1Ext) {
+    bStripped = b.replace(new RegExp(b1Ext[0].replace('.', '\\.')), '');
+  }
+
+  return aStripped.localeCompare(bStripped, undefined, {
+    numeric: true,
+    ignorePunctuation: true,
+  });
 };
