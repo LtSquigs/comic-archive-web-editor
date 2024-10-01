@@ -213,7 +213,11 @@ export function MergeButton({
     }
     const images: { file: string; originalName: string; finalName: string }[] =
       [];
+    const imageCounts: number[] = [];
     const merges: Merge[] = fileMap.map((pair) => {
+      imageCounts.push(
+        pair.entries.reduce((p, e) => (e.entry.isImage ? p + 1 : p), 0)
+      );
       return {
         file: pair.file,
         entries: pair.entries.map(({ prefix, entry, number, secondNumber }) => {
@@ -270,7 +274,7 @@ export function MergeButton({
     const res = await API.mergeArchives(saveFile, merges);
 
     let adjustedPages: APIPage[] = allPages[0];
-    let adjustment = merges[0].entries.length - 1;
+    let adjustment = imageCounts[0];
     for (let i = 1; i < allPages.length; i++) {
       console.log(adjustment);
       adjustedPages = adjustedPages.concat(
@@ -281,7 +285,7 @@ export function MergeButton({
         })
       );
 
-      adjustment += merges[i].entries.length - 1 + i;
+      adjustment += imageCounts[i];
     }
 
     if (!ignoreBookmarks) {
