@@ -281,7 +281,7 @@ export function MergeButton({
         })
       );
 
-      adjustment += merges[i].entries.length - 1;
+      adjustment += merges[i].entries.length - 1 + i;
     }
 
     if (!ignoreBookmarks) {
