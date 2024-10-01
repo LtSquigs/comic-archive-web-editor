@@ -80,6 +80,7 @@ export function MergeButton({
     const seenEntries: any = {};
     let lastNumber = 0;
     const bookmarks: any = [];
+    const allPages: APIPage[][] = [];
     let ignoreBookmarks = false;
     for (const { id: file } of items) {
       const entries = await API.getEntries(file);
@@ -94,6 +95,7 @@ export function MergeButton({
         return;
       }
       let bookmarkAdded = false;
+      allPages.push(metadata.data.pages || []);
       fileMap.push({
         file,
         entries: entries.data
@@ -267,8 +269,23 @@ export function MergeButton({
 
     const res = await API.mergeArchives(saveFile, merges);
 
+    let adjustedPages: APIPage[] = allPages[0];
+    let adjustment = merges[0].entries.length - 1;
+    for (let i = 1; i < allPages.length; i++) {
+      console.log(adjustment);
+      adjustedPages = adjustedPages.concat(
+        allPages[i].map((page) => {
+          const newPage = { ...page };
+          newPage.image = (newPage.image as number) + adjustment;
+          return newPage;
+        })
+      );
+
+      adjustment += merges[i].entries.length - 1;
+    }
+
     if (!ignoreBookmarks) {
-      const pages = bookmarks.map((bookmark: any): APIPage => {
+      bookmarks.forEach((bookmark: any): void => {
         let file = bookmark[0];
         let entryName = bookmark[1];
         let chapter = bookmark[2];
@@ -279,26 +296,34 @@ export function MergeButton({
         );
 
         if (page === -1) {
-          ignoreBookmarks = true;
+          return;
         }
 
-        return {
-          image: page,
-          bookmark: title
+        const foundPage = adjustedPages.find((x) => x.image == page);
+        if (foundPage) {
+          foundPage.bookmark = title
             ? `Chapter ${chapter} - ${title}`
-            : `Chapter ${chapter}`,
-        };
+            : `Chapter ${chapter}`;
+        } else {
+          adjustedPages.push({
+            image: page,
+            bookmark: title
+              ? `Chapter ${chapter} - ${title}`
+              : `Chapter ${chapter}`,
+          });
+        }
       });
-
-      if (!ignoreBookmarks) {
-        const newMetadata: APIMetadata = {
-          pages,
-        };
-
-        await API.setMetadata(newMetadata as Metadata, saveFile);
-      }
     }
 
+    adjustedPages.sort((a, b) => (a.image as number) - (b.image as number));
+
+    if (adjustedPages.length > 0) {
+      const newMetadata: APIMetadata = {
+        pages: adjustedPages,
+      };
+
+      await API.setMetadata(newMetadata as Metadata, saveFile);
+    }
     toast({
       title: !res.error ? 'Task Finished' : 'Task Failed',
       variant: !res.error ? 'default' : 'destructive',
