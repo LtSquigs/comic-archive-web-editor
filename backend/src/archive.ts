@@ -5,6 +5,7 @@ import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
 import {
+  COVER_REGEX,
   hexToRgb,
   REGISTERED_READERS,
   REGISTERED_WRITERS,
@@ -18,6 +19,7 @@ import {
   JoinPair,
   Merge,
   MergeRequest,
+  PageType,
   Split,
 } from './shared/types.js';
 import { Readable } from 'stream';
@@ -263,7 +265,11 @@ export class Archive {
     if (!this.reader) return [null, null];
     if (this.dirty) await this.reload();
 
-    const entries = await this.reader.entries();
+    const entries = (await this.reader.entries()).filter((x) => {
+      const type = mime.getType(x.filename);
+      return type && type.startsWith('image/');
+    });
+
     entries.sort((a, b) => {
       const aExt = path.extname(a.filename);
       const bExt = path.extname(b.filename);
@@ -277,11 +283,27 @@ export class Archive {
       );
       return aName.localeCompare(bName, undefined, { numeric: true });
     });
+
     let cover = null;
 
-    for (const entry of entries) {
-      const mimeType = mime.getType(entry.filename);
-      if (mimeType && mimeType.startsWith('image/')) {
+    const metadata = await this.getMetadata();
+
+    if (metadata.pages) {
+      const pageIdx =
+        (
+          metadata.pages.find(
+            (p) =>
+              p.type == PageType.INNER_COVER || p.type == PageType.FRONT_COVER
+          ) || { image: -1 }
+        ).image || -1;
+
+      if (pageIdx !== -1) {
+        cover = entries[pageIdx];
+      }
+    }
+
+    if (cover == null) {
+      for (const entry of entries) {
         if (cover === null) {
           cover = entry;
           continue;
@@ -290,7 +312,7 @@ export class Archive {
         let ext = path.extname(entry.filename);
         let base = path.basename(entry.filename, ext);
 
-        if (base.match(/^cover$/i)) {
+        if (base.match(COVER_REGEX)) {
           cover = entry;
         }
       }

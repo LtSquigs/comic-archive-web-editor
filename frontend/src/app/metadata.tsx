@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { UpdateIcon } from '@radix-ui/react-icons';
 import { API } from './api';
-import CoverSelector from './coverSelector';
+import { CoverSelector } from './coverSelector';
 import { useToast } from '@/hooks/use-toast';
 import { MetadataFields } from './utils';
 import MetadataInput from './metadataInput';
@@ -151,12 +151,7 @@ export function MetadataEditor({
               ></MetadataScraper>
             </div>
           ) : null}
-          <CoverSelector
-            disabled={metadataStatus === ActionState.INPROGRESS}
-            files={files}
-            entries={entries}
-            ref={coverRef}
-          ></CoverSelector>
+          <CoverSelector files={files}></CoverSelector>
         </div>
         {topFields.map(([key, span]) => {
           return (

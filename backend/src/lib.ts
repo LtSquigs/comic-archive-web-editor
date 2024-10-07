@@ -15,6 +15,9 @@ export const ALLOWED_EXTENSIONS = CBZReader.extensions;
 export const REGISTERED_READERS = [CBZReader];
 export const REGISTERED_WRITERS = [CBZWriter];
 
+export const COVER_REGEX =
+  /(?<![[a-z]\d])(?:!?)(?<!back)(?<!back_)(?<!back-)(cover|folder)(?![\w\d])/i;
+
 let keys: APIKeys = {};
 let readKeys = false;
 
