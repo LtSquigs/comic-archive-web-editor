@@ -214,6 +214,7 @@ export function PageMetadata({
   });
 
   const addBookmark = () => {
+    const oldBookmarkToAdd = bookmarkToAdd;
     setCurrentMetadata((prevValue) => {
       const newValue = { ...prevValue };
       let imageToAdd = parseInt(bookmarkImageToAdd, 10);
@@ -229,7 +230,7 @@ export function PageMetadata({
         }
       }
 
-      if (isNaN(imageToAdd) || !bookmarkToAdd) {
+      if (isNaN(imageToAdd) || !oldBookmarkToAdd) {
         return prevValue;
       }
 
@@ -239,11 +240,11 @@ export function PageMetadata({
 
       const pageEntry = newValue.pages.find((x) => x.image == imageToAdd);
       if (pageEntry) {
-        pageEntry.bookmark = bookmarkToAdd;
+        pageEntry.bookmark = oldBookmarkToAdd;
       } else {
         newValue.pages.push({
           image: imageToAdd,
-          bookmark: bookmarkToAdd,
+          bookmark: oldBookmarkToAdd,
         });
 
         newValue.pages.sort(
@@ -253,6 +254,13 @@ export function PageMetadata({
 
       return newValue;
     });
+
+    const groups = bookmarkToAdd.match(/(chapter\s*)(\d+\.?\d*)(\s*-\s*)?/i);
+
+    if (groups) {
+      const num = Number(groups[2]);
+      setBookmarkToAdd(groups[1] + (num + 1) + (groups[3] ?? ''));
+    }
   };
 
   const removeBookmark = (bookmarkIdx: number) => {
@@ -380,7 +388,6 @@ export function PageMetadata({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Page #</TableHead>
               <TableHead>Entry Name</TableHead>
               <TableHead>Bookmark</TableHead>
               <TableHead className="w-[100px]"></TableHead>
@@ -390,7 +397,6 @@ export function PageMetadata({
             {bookMarks.map((bookmark) => {
               return (
                 <TableRow>
-                  <TableCell>{bookmark.image}</TableCell>
                   <TableCell className="max-w-[100px]">
                     {bookmark.name}
                   </TableCell>
@@ -411,13 +417,6 @@ export function PageMetadata({
             <TableRow>
               <TableCell>
                 <Input
-                  value={bookmarkImageToAdd}
-                  onChange={(e) => setBookmarkImageToAdd(e.target.value)}
-                  type="number"
-                ></Input>
-              </TableCell>
-              <TableCell>
-                <Input
                   value={bookmarkEntryToAdd}
                   onChange={(e) => setBookmarkEntryToAdd(e.target.value)}
                 ></Input>
@@ -426,6 +425,11 @@ export function PageMetadata({
                 <Input
                   value={bookmarkToAdd}
                   onChange={(e) => setBookmarkToAdd(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key.toLowerCase() === 'enter') {
+                      addBookmark();
+                    }
+                  }}
                 ></Input>
               </TableCell>
               <TableCell>
