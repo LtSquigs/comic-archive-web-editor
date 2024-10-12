@@ -149,6 +149,12 @@ function PageMetadataEditor({
   );
 }
 
+interface Bookmark {
+  image?: number;
+  bookmark: string;
+  name?: string;
+}
+
 export function PageMetadata({
   allEntries,
   entries,
@@ -165,12 +171,12 @@ export function PageMetadata({
   const [renumberDeletes, setRenumberDeletes] = useState(true);
   const [metadataDirty, setMetadataDirty] = useState(false);
   const [currentMetadata, setCurrentMetadata] = useState<APIMetadata>({});
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [metadataStatus, setMetadataStatus] = useState(ActionState.NONE);
   const [deleteStatus, setDeleteStatus] = useState(ActionState.NONE);
   const [toDelete, setToDelete] = useState<string[]>([]);
   const [currentEntry, setCurrentEntry] = useState<Entry>(entries[0]);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [bookmarkImageToAdd, setBookmarkImageToAdd] = useState('');
   const [bookmarkToAdd, setBookmarkToAdd] = useState('');
   const [bookmarkEntryToAdd, setBookmarkEntryToAdd] = useState('');
   const { toast } = useToast();
@@ -213,14 +219,17 @@ export function PageMetadata({
     };
   });
 
-  const addBookmark = () => {
-    const oldBookmarkToAdd = bookmarkToAdd;
-    setCurrentMetadata((prevValue) => {
-      const newValue = { ...prevValue };
-      let imageToAdd = parseInt(bookmarkImageToAdd, 10);
-      const entryToAdd = bookmarkEntryToAdd;
+  const addBookmark = (
+    bookmarkToAdd: string,
+    entryToAdd?: string,
+    idx?: number,
+    resolve: boolean = true
+  ) => {
+    setBookmarks((prevValue) => {
+      const newValue = [...prevValue];
+      let imageToAdd = null;
 
-      if (entryToAdd) {
+      if (entryToAdd && resolve) {
         const entryIdx = entries.findIndex((x) =>
           x.entryName.includes(entryToAdd)
         );
@@ -230,49 +239,44 @@ export function PageMetadata({
         }
       }
 
-      if (isNaN(imageToAdd) || !oldBookmarkToAdd) {
+      if (!bookmarkToAdd) {
         return prevValue;
       }
 
-      if (!newValue.pages) {
-        newValue.pages = [];
-      }
-
-      const pageEntry = newValue.pages.find((x) => x.image == imageToAdd);
-      if (pageEntry) {
-        pageEntry.bookmark = oldBookmarkToAdd;
-      } else {
-        newValue.pages.push({
+      const pageEntry =
+        idx !== undefined
+          ? newValue[idx]
+          : newValue.find((x) => x.image == imageToAdd);
+      if ((imageToAdd || idx !== undefined) && pageEntry) {
+        pageEntry.image = imageToAdd ? imageToAdd : pageEntry.image;
+        pageEntry.bookmark = bookmarkToAdd;
+        pageEntry.name = imageToAdd
+          ? entries[imageToAdd].entryName
+          : entryToAdd
+          ? entryToAdd
+          : pageEntry.name;
+      } else if (imageToAdd) {
+        newValue.push({
           image: imageToAdd,
-          bookmark: oldBookmarkToAdd,
+          name: entries[imageToAdd].entryName,
+          bookmark: bookmarkToAdd,
         });
-
-        newValue.pages.sort(
-          (a, b) => (a.image as number) - (b.image as number)
-        );
+      } else {
+        newValue.push({
+          bookmark: bookmarkToAdd,
+        });
       }
 
+      newValue.sort((a, b) => (a.image as number) - (b.image as number));
       return newValue;
     });
-
-    const groups = bookmarkToAdd.match(/(chapter\s*)(\d+\.?\d*)(\s*-\s*)?/i);
-
-    if (groups) {
-      const num = Number(groups[2]);
-      setBookmarkToAdd(groups[1] + (num + 1) + (groups[3] ?? ''));
-    }
   };
 
   const removeBookmark = (bookmarkIdx: number) => {
-    if (!currentMetadata.pages) return;
-    const pageEntry = currentMetadata.pages.find((x) => x.image == bookmarkIdx);
-    if (pageEntry) {
-      setCurrentMetadata((prevValue) => {
-        const newValue = { ...prevValue };
-        pageEntry.bookmark = null;
-        return newValue;
-      });
-    }
+    setBookmarks((prevValue) => {
+      const newValue = [...prevValue];
+      return newValue.filter((x, idx) => idx != bookmarkIdx);
+    });
   };
 
   const onUpdateMetadata = async (metadata: APIMetadata) => {
@@ -292,10 +296,64 @@ export function PageMetadata({
     const onlyPages = {
       pages: metadata.pages,
     };
+    const pages = metadata.pages || [];
+    const marks = pages
+      .map((p) => {
+        if (p.bookmark) {
+          return {
+            image: p.image as number,
+            name: (entries[p.image as number] || {}).entryName,
+            bookmark: p.bookmark as string,
+          };
+        }
+        return null;
+      })
+      .filter((x) => x != null);
+
+    marks.sort((a, b) => a.image - b.image);
+
+    setBookmarks(marks);
     setToDelete([]);
     setCurrentMetadata(onlyPages);
     setMetadataStatus(ActionState.NONE);
   }, [metadata, entries]);
+
+  useEffect(() => {
+    const filteredMarks = bookmarks.filter((x) => x.image !== null);
+
+    setCurrentMetadata((prevValue) => {
+      const newValue = { ...prevValue };
+      const idxs: number[] = [];
+      filteredMarks.forEach((mark) => {
+        if (mark.image === undefined) return;
+        idxs.push(mark.image);
+        if (!newValue.pages) newValue.pages = [];
+        const page = newValue.pages.find((p) => p.image === mark.image);
+        if (page) {
+          page.bookmark = mark.bookmark;
+        } else {
+          newValue.pages.push({
+            image: mark.image,
+            bookmark: mark.bookmark,
+          });
+        }
+      });
+
+      if (newValue.pages) {
+        newValue.pages.forEach((val) => {
+          if (val.image === null || val.image === undefined) return;
+          if (!idxs.includes(val.image as number)) {
+            val.bookmark = '';
+          }
+        });
+        newValue.pages.sort(
+          (a, b) => (a.image as number) - (b.image as number)
+        );
+      }
+
+      return newValue;
+    });
+  }, [bookmarks]);
 
   const saveMetadata = async () => {
     await onUpdateMetadata(currentMetadata);
@@ -367,22 +425,6 @@ export function PageMetadata({
   };
 
   const renderBookmarkEditor = (index: number) => {
-    const pages = currentMetadata.pages || [];
-    const bookMarks = pages
-      .map((p) => {
-        if (p.bookmark) {
-          return {
-            image: p.image as number,
-            name: (entries[p.image as number] || {}).entryName,
-            bookmark: p.bookmark as string,
-          };
-        }
-        return null;
-      })
-      .filter((x) => x != null);
-
-    bookMarks.sort((a, b) => a.image - b.image);
-
     return (
       <div>
         <Table>
@@ -394,20 +436,38 @@ export function PageMetadata({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookMarks.map((bookmark) => {
+            {bookmarks.map((bookmark, idx) => {
               return (
                 <TableRow>
                   <TableCell className="max-w-[100px]">
-                    {bookmark.name}
+                    <Input
+                      value={bookmark.name}
+                      onChange={(e) => {
+                        addBookmark(
+                          bookmark.bookmark,
+                          e.target.value,
+                          idx,
+                          false
+                        );
+                      }}
+                      onBlur={(e) => {
+                        addBookmark(bookmark.bookmark, e.target.value, idx);
+                      }}
+                    />
                   </TableCell>
                   <TableCell className="max-w-[300px]">
-                    {bookmark.bookmark}
+                    <Input
+                      value={bookmark.bookmark}
+                      onChange={(e) => {
+                        addBookmark(e.target.value, bookmark.name, idx);
+                      }}
+                    />
                   </TableCell>
                   <TableCell>
                     <Cross1Icon
                       className="cursor-pointer"
                       onClick={() => {
-                        removeBookmark(bookmark.image);
+                        removeBookmark(idx);
                       }}
                     ></Cross1Icon>
                   </TableCell>
@@ -422,20 +482,32 @@ export function PageMetadata({
                 ></Input>
               </TableCell>
               <TableCell>
-                <Input
+                <Textarea
+                  className="resize-none"
                   value={bookmarkToAdd}
-                  onChange={(e) => setBookmarkToAdd(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key.toLowerCase() === 'enter') {
-                      addBookmark();
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    console.log(val);
+                    if (val.includes('\n')) {
+                      const values = val.split('\n').filter((x) => x);
+                      values.forEach((bm) => {
+                        addBookmark(bm, bookmarkEntryToAdd);
+                      });
+                      setBookmarkToAdd('');
+                    } else {
+                      setBookmarkToAdd(e.target.value);
                     }
                   }}
-                ></Input>
+                  rows={1}
+                  style={{ minHeight: 'unset' }}
+                ></Textarea>
               </TableCell>
               <TableCell>
                 <PlusIcon
                   className="cursor-pointer"
-                  onClick={addBookmark}
+                  onClick={() => {
+                    addBookmark(bookmarkToAdd, bookmarkEntryToAdd);
+                  }}
                 ></PlusIcon>
               </TableCell>
             </TableRow>
@@ -532,6 +604,32 @@ export function PageMetadata({
 
         return prevValue;
       });
+
+      if (field === 'bookmark') {
+        setBookmarks((prevValue) => {
+          let newValue = [...prevValue];
+
+          // Remove bookmark
+          if (!value) {
+            newValue = newValue.filter((page) => page.image !== index);
+          } else {
+            let page = newValue.find((page) => page.image === index);
+            if (page) {
+              page.bookmark = value;
+            } else {
+              newValue.push({
+                image: index,
+                bookmark: value,
+                name: entries[index].entryName,
+              });
+            }
+          }
+
+          newValue.sort((a, b) => (a.image as number) - (b.image as number));
+
+          return newValue;
+        });
+      }
     };
 
     return (
