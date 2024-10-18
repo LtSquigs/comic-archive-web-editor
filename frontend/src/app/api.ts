@@ -342,7 +342,7 @@ export class API {
   }
 
   static getCoverUrl(): string {
-    if (API.files.length > 1) {
+    if (API.files.length !== 1) {
       return '';
     }
 

@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
   Cross1Icon,
+  EyeOpenIcon,
   InfoCircledIcon,
   ResetIcon,
   TrashIcon,
@@ -56,6 +57,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { PlusIcon } from 'lucide-react';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
 
 function PageMetadataEditor({
   pageNumber,
@@ -464,12 +470,26 @@ export function PageMetadata({
                     />
                   </TableCell>
                   <TableCell>
-                    <Cross1Icon
-                      className="cursor-pointer"
-                      onClick={() => {
-                        removeBookmark(idx);
-                      }}
-                    ></Cross1Icon>
+                    <div className="flex gap-3">
+                      <HoverCard>
+                        <HoverCardTrigger>
+                          <EyeOpenIcon></EyeOpenIcon>
+                        </HoverCardTrigger>
+                        <HoverCardContent side="left">
+                          {bookmark.name ? (
+                            <img src={API.getImageUrl(file, bookmark.name)} />
+                          ) : (
+                            'No image'
+                          )}
+                        </HoverCardContent>
+                      </HoverCard>
+                      <Cross1Icon
+                        className="cursor-pointer"
+                        onClick={() => {
+                          removeBookmark(idx);
+                        }}
+                      ></Cross1Icon>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
