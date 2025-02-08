@@ -26,6 +26,7 @@ import {
 import { RouteHandler } from './types.js';
 import sharp from 'sharp';
 import mime from 'mime';
+import cors from 'cors';
 
 const getFiles = (params: any) => {
   let files = (params['files'] || []) as string | string[];
@@ -51,6 +52,8 @@ const app = express();
 app.use(express.json());
 app.use(fileUpload());
 app.use(express.static(STATIC_PATH));
+app.use(cors());
+app.options('*', cors());
 
 const wrapHandler = (fn: RouteHandler): express.RequestHandler => {
   return async (req, res, next) => {

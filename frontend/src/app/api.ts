@@ -12,6 +12,8 @@ import {
 } from '../shared/types';
 import { compareFiles } from './utils';
 
+const API_HOST = '';
+
 let abortController: AbortController | null = null;
 export const abortableRequest = async <T>(
   fn: (signal: AbortSignal) => Promise<any>
@@ -46,9 +48,12 @@ export class API {
       const params = new URLSearchParams();
       params.append('prefix', subdir);
 
-      const resp = await fetch(`/archive/list?${params.toString()}`, {
-        signal,
-      });
+      const resp = await fetch(
+        `${API_HOST}/archive/list?${params.toString()}`,
+        {
+          signal,
+        }
+      );
       const body = await resp.json();
 
       if (body.error) {
@@ -68,7 +73,7 @@ export class API {
       formData.append(name, file);
       // const params = new URLSearchParams();
       // params.append('files', name);
-      const resp = await fetch(`/archive/upload`, {
+      const resp = await fetch(`${API_HOST}/archive/upload`, {
         method: 'PUT',
         body: formData,
         signal,
@@ -88,7 +93,7 @@ export class API {
     toFile: string
   ): Promise<APIResult<string>> {
     return abortableRequest(async (signal): Promise<APIResult<string>> => {
-      const resp = await fetch(`/archive/move`, {
+      const resp = await fetch(`${API_HOST}/archive/move`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -112,7 +117,7 @@ export class API {
     merges: Merge[]
   ): Promise<APIResult<string>> {
     return abortableRequest(async (signal): Promise<APIResult<string>> => {
-      const resp = await fetch(`/archive/merge`, {
+      const resp = await fetch(`${API_HOST}/archive/merge`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -132,7 +137,7 @@ export class API {
   }
 
   static async getKeys(): Promise<APIResult<APIKeys>> {
-    const resp = await fetch(`/keys`);
+    const resp = await fetch(`${API_HOST}/keys`);
     const body = await resp.json();
 
     if (body.error) {
@@ -144,7 +149,7 @@ export class API {
 
   static async setKeys(keys: APIKeys): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/keys`, {
+      const resp = await fetch(`${API_HOST}/keys`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -171,7 +176,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<Entry[]>> => {
-      const resp = await fetch(`/archive/entries`, {
+      const resp = await fetch(`${API_HOST}/archive/entries`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -202,7 +207,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/entries`, {
+      const resp = await fetch(`${API_HOST}/archive/entries`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -223,7 +228,7 @@ export class API {
 
   static async flattenEntries(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/flatten`, {
+      const resp = await fetch(`${API_HOST}/archive/flatten`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -244,7 +249,7 @@ export class API {
 
   static async removeExif(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/removeExif`, {
+      const resp = await fetch(`${API_HOST}/archive/removeExif`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -269,7 +274,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<APIMetadata>> => {
-      const resp = await fetch(`/archive/metadata`, {
+      const resp = await fetch(`${API_HOST}/archive/metadata`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -297,7 +302,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/metadata`, {
+      const resp = await fetch(`${API_HOST}/archive/metadata`, {
         method: 'PUT',
         headers: {
           Accept: 'application/json',
@@ -323,7 +328,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/metadata/bulk`, {
+      const resp = await fetch(`${API_HOST}/archive/metadata/bulk`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -388,7 +393,7 @@ export class API {
 
   static async setCover(entry: Entry): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/cover`, {
+      const resp = await fetch(`${API_HOST}/archive/cover`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -411,7 +416,7 @@ export class API {
     gapColor: string
   ): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/image/join`, {
+      const resp = await fetch(`${API_HOST}/archive/image/join`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -435,7 +440,7 @@ export class API {
 
   static async delete(): Promise<APIResult<boolean>> {
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/delete`, {
+      const resp = await fetch(`${API_HOST}/archive/delete`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -490,7 +495,7 @@ export class API {
     }
 
     return abortableRequest(async (signal): Promise<APIResult<boolean>> => {
-      const resp = await fetch(`/archive/split`, {
+      const resp = await fetch(`${API_HOST}/archive/split`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
@@ -509,7 +514,7 @@ export class API {
 
   static async scrape(url: string): Promise<APIResult<APIMetadata>> {
     return abortableRequest(async (signal): Promise<APIResult<APIMetadata>> => {
-      const resp = await fetch(`/scrape`, {
+      const resp = await fetch(`${API_HOST}/scrape`, {
         method: 'POST',
         headers: {
           Accept: 'application/json',
