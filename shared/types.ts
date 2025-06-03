@@ -12,6 +12,8 @@ export type Entry = {
   isDirectory: boolean;
   isImage: boolean;
   size: number;
+  height: number;
+  width: number;
 };
 
 export type EntryMap = {

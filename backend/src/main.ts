@@ -340,10 +340,15 @@ app.post(
       throw new Error('TOO MANY FILES');
     }
 
+    const getDimensions = params['dimensions'] === '1';
+
     const archive = new Archive(files[0].resolved, signal);
     await archive.load();
     try {
-      return { type: 'json', body: { entries: await archive.entries() } };
+      return {
+        type: 'json',
+        body: { entries: await archive.entries(getDimensions) },
+      };
     } finally {
       await archive.close();
     }

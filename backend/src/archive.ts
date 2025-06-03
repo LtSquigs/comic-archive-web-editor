@@ -1,6 +1,7 @@
 import { posix as path } from 'path';
 import { ComicInfo } from './metadata.js';
 import { ArchiveEntry, ArchiveReader, ArchiveWriter } from './types.js';
+import { imageSize } from 'image-size';
 import mime from 'mime';
 import fs from 'fs';
 import { joinImages } from 'join-images';
@@ -106,7 +107,7 @@ export class Archive {
   }
 
   // Retrives a list of all entries in the archive
-  async entries(): Promise<Entry[]> {
+  async entries(retrieveDimensions = false): Promise<Entry[]> {
     if (this.signal?.aborted) throw new Error('Request Aborted.');
     if (!this.reader) return [];
     if (this.dirty) await this.reload();
@@ -121,7 +122,13 @@ export class Archive {
       if (mimeType && mimeType.startsWith('image/')) {
         isImage = true;
       }
-
+      let dimensions = { width: 0, height: 0 };
+      if (retrieveDimensions) {
+        const data = await entry.getData();
+        const rawData = await getRawBody(data);
+        if (rawData.byteLength > 0)
+          dimensions = imageSize(new Uint8Array(rawData));
+      }
       entries.push({
         entryName: entry.filename,
         baseName: baseName,
@@ -131,6 +138,8 @@ export class Archive {
         isImage: isImage,
         sep: path.sep,
         size: entry.size,
+        height: dimensions.height,
+        width: dimensions.width,
       });
     }
 
