@@ -124,10 +124,12 @@ export class Archive {
       }
       let dimensions = { width: 0, height: 0 };
       if (retrieveDimensions) {
-        const data = await entry.getData();
-        const rawData = await getRawBody(data);
-        if (rawData.byteLength > 0)
-          dimensions = imageSize(new Uint8Array(rawData));
+        try {
+          const data = await entry.getData();
+          const rawData = await getRawBody(data);
+          if (rawData.byteLength > 0)
+            dimensions = imageSize(new Uint8Array(rawData));
+        } catch (e) {}
       }
       entries.push({
         entryName: entry.filename,
