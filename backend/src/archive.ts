@@ -130,6 +130,7 @@ export class Archive {
         isDirectory: entry.directory,
         isImage: isImage,
         sep: path.sep,
+        size: entry.size,
       });
     }
 

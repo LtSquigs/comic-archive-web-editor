@@ -137,6 +137,7 @@ export class CBZReader implements ArchiveReader {
               this.internalEntries.push({
                 filename: entry.fileName,
                 directory: entry.fileName[entry.fileName.length - 1] === '/',
+                size: entry.uncompressedSize,
                 getData: async () => {
                   return new Promise((resolve, reject) => {
                     zipFile.openReadStream(entry, (err, stream) => {

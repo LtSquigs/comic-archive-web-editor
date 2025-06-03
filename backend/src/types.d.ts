@@ -4,6 +4,7 @@ import { Readable } from 'stream';
 export type ArchiveEntry = {
   filename: string;
   directory: boolean;
+  size: number;
   getData: () => Promise<Readable>;
 };
 

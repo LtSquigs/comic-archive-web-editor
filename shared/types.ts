@@ -11,6 +11,7 @@ export type Entry = {
   extName: string;
   isDirectory: boolean;
   isImage: boolean;
+  size: number;
 };
 
 export type EntryMap = {
