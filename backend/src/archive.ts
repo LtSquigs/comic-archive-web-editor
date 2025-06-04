@@ -246,6 +246,28 @@ export class Archive {
     this.markDirty();
   }
 
+  async addEntries(
+    newEntries: { data: Buffer; name: string }[],
+    entrytoRemove: string
+  ): Promise<void> {
+    if (this.signal?.aborted) throw new Error('Request Aborted.');
+    if (!this.reader) return;
+    if (this.dirty) await this.reload();
+
+    const writer = this.getWriter();
+
+    for (const entry of await this.reader.entries()) {
+      if (entry.filename === entrytoRemove) continue;
+      await writer.add(entry.filename, await entry.getData());
+    }
+
+    for (const newEntry of newEntries) {
+      await writer.add(newEntry.name, Readable.from(newEntry.data));
+    }
+    await writer.write(this.file);
+    this.markDirty();
+  }
+
   // Removes EXIF data from images detected in archive
   async removeExif(): Promise<void> {
     if (this.signal?.aborted) throw new Error('Request Aborted.');

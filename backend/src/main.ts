@@ -180,7 +180,33 @@ app.post(
     await archive.load();
 
     try {
-      await archive.combineImages(pairs, body.gap, body.gapColor);
+      // await archive.combineImages(pairs, body.gap, body.gapColor);
+    } finally {
+      await archive.close();
+    }
+    return { type: 'json', body: { success: true } };
+  })
+);
+
+app.post(
+  '/archive/image/upload',
+  wrapHandler(async (params, body, signal, files) => {
+    const archiveFile = getFilesFromBody(body);
+    const entrytoRemove: string = body.entryToRemove;
+    if (archiveFile.length > 1) {
+      throw new Error('TOO MANY FILES');
+    }
+    const archive = new Archive(archiveFile[0].resolved, signal);
+    await archive.load();
+    let imageFiles = (files || {})['images[]'] || [];
+    if (!Array.isArray(imageFiles)) {
+      imageFiles = [imageFiles];
+    }
+    try {
+      await archive.addEntries(
+        imageFiles.map((file) => ({ data: file.data, name: file.name })),
+        entrytoRemove
+      );
     } finally {
       await archive.close();
     }
